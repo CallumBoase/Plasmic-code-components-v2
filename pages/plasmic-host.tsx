@@ -21,6 +21,7 @@ registerComponent(HelloWorld, {
 registerComponent(TweetsProvider, {
   importPath: '@components/plasmic/TweetsProvider.tsx', 
   name: 'TweetsProvider',
+  providesData: true,
   props: {
     children: {
       type: 'slot',
