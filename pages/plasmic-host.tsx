@@ -5,6 +5,7 @@ import { PLASMIC } from '@/plasmic-init';
 
 //Components for use in the Plasmic editor
 import { HelloWorld } from '@/components/plasmic/HelloWorld';
+import { TweetsProvider } from '@/components/plasmic/TweetsProvider';
 
 registerComponent(HelloWorld, {
   importPath: '@components/plasmic/HelloWorld.tsx', 
@@ -13,6 +14,16 @@ registerComponent(HelloWorld, {
     name: {
       type: 'string',
       defaultValue: 'Something',
+    }
+  }
+})
+
+registerComponent(TweetsProvider, {
+  importPath: '@components/plasmic/TweetsProvider.tsx', 
+  name: 'TweetsProvider',
+  props: {
+    children: {
+      type: 'slot',
     }
   }
 })
