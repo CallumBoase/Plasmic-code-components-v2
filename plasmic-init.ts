@@ -56,6 +56,14 @@ PLASMIC.registerComponent(StaffProvider, {
   providesData: true,
   props: {
     children: 'slot'
+  },
+  refActions: {
+    deleteStaff: {
+      description: 'delete a staff member',
+      argTypes: [
+        {name: 'Staff ID', type: 'number'}
+      ]
+    }
   }
 })
 

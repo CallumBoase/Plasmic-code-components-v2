@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { usePlasmicQueryData } from "@plasmicapp/loader-nextjs";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { createBrowserClient } from "@supabase/ssr";
@@ -7,42 +7,92 @@ interface StaffActions {
   deleteStaff(id: number): void;
 }
 
-export function StaffProvider({ children }: { children: React.ReactNode }) {
-  const { data: fetchedData, error, isLoading } = usePlasmicQueryData("/staff", async () => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_props, ref) {
 
-    const { data, error } = await supabase.from("staff").select("*");
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
+  // const { data: fetchedData, error, isLoading } = usePlasmicQueryData("/staff", async () => {
+  //   const supabase = createBrowserClient(
+  //     process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  //     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  //   );
 
-    if (error) throw error;
+  //   const { data, error } = await supabase.from("staff").select("*");
+  //   // await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    return data;
-  });
+  //   if (error) throw error;
 
-  const [data, setData] = useState([]);
+  //   return data;
+  // });
 
-  useEffect(() => {
-    if (fetchedData) {
-      setData(fetchedData);
-    }
-  }, [fetchedData]);
 
-  const deleteStaff = (id) => {
-    setData(currentData => currentData.filter(staff => staff.id !== id));
-  }
+  const [data, setData] = useState([{name: 'callum', id: 1}, {name: 'cathy', id: 2}]);
+
+  // useEffect(() => {
+  //   if (fetchedData) {
+  //     setData(fetchedData);
+  //   }
+  // }, [fetchedData]);
+
+  useImperativeHandle(
+    ref,
+    () => {
+      return {
+        deleteStaff(id: number) {
+          setData(currentData => currentData.filter(staff => staff.id !== id));
+        }
+      };
+    },
+    [setData]
+  );
 
   return (
     <>
-      {isLoading && <div>Loading...</div>}
-      {error && <div>Error: {error.message}</div>}
+      {/* {isLoading && <div>Loading...</div>}
+      {error && <div>Error: {error.message}</div>} */}
       {data && (
         <DataProvider name="staff" data={data}>
-          {children}
+          {_props.children}
         </DataProvider>
       )}
     </>
   );
-}
+});
+
+// export function StaffProviderBase({ children }: { children: React.ReactNode }) {
+//   const { data: fetchedData, error, isLoading } = usePlasmicQueryData("/staff", async () => {
+//     const supabase = createBrowserClient(
+//       process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+//     );
+
+//     const { data, error } = await supabase.from("staff").select("*");
+//     // await new Promise((resolve) => setTimeout(resolve, 3000));
+
+//     if (error) throw error;
+
+//     return data;
+//   });
+
+//   const [data, setData] = useState([]);
+
+//   useEffect(() => {
+//     if (fetchedData) {
+//       setData(fetchedData);
+//     }
+//   }, [fetchedData]);
+
+//   const deleteStaff = (id) => {
+//     setData(currentData => currentData.filter(staff => staff.id !== id));
+//   }
+
+//   return (
+//     <>
+//       {isLoading && <div>Loading...</div>}
+//       {error && <div>Error: {error.message}</div>}
+//       {data && (
+//         <DataProvider name="staff" data={data}>
+//           {children}
+//         </DataProvider>
+//       )}
+//     </>
+//   );
+// }
