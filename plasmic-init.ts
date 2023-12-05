@@ -3,6 +3,7 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 //Custom components
 import { HelloWorld } from './components/plasmic/HelloWorld'
 import { TweetsProvider } from './components/plasmic/TweetsProvider'
+import { Counter } from "./components/plasmic/Counter";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -47,3 +48,28 @@ PLASMIC.registerComponent(TweetsProvider, {
     children: 'slot'
   }
 })
+
+PLASMIC.registerComponent(Counter, {
+  importPath: './components/plasmic/Counter.tsx',
+  name: 'Counter',
+  props: {},
+  refActions: {
+    increment: {
+      description: 'Add one to the counter',
+      argTypes: []
+    },
+    decrement: {
+      description: 'Subtract one from the counter',
+      argTypes: []
+    },
+    set: {
+      description: 'Set the counter to any number',
+      argTypes: [
+        {
+          name: 'count',
+          type: 'number'
+        }
+      ]
+    }
+  }
+});
