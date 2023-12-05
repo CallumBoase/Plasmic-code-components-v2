@@ -16,7 +16,7 @@ export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_pr
     );
 
     const { data, error } = await supabase.from("staff").select("*");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // await new Promise((resolve) => setTimeout(resolve, 3000));
 
     if (error) throw error;
 
@@ -43,6 +43,23 @@ export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_pr
           );
 
           const { error } = await supabase.from("staff").delete().eq("id", id);
+
+          if (error) throw error;
+
+          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*");
+
+          if(refetchError) throw refetchError;
+
+          setData(refetched);
+          //setData(currentData => currentData.filter(staff => staff.id !== id));
+        },
+        async addStaff(staff : {name: string}) {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+
+          const { error } = await supabase.from("staff").insert(staff);
 
           if (error) throw error;
 
