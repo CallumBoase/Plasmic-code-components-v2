@@ -71,7 +71,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
           const supabase = initSupabase();
           const { error } = await supabase
             .from("staff")
-            .update({ name: staff.name })
+            .update(staff)
             .eq("id", staff.id);
           if (error) throw error;
           await refetchData();
