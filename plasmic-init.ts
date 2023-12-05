@@ -1,5 +1,9 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
+//Custom components
+import { HelloWorld } from './components/plasmic/HelloWorld'
+import { TweetsProvider } from './components/plasmic/TweetsProvider'
+
 export const PLASMIC = initPlasmicLoader({
   projects: [
     {
@@ -12,7 +16,7 @@ export const PLASMIC = initPlasmicLoader({
   // For development, you can set preview to true, which will use the unpublished
   // project, allowing you to see your designs without publishing.  Please
   // only use this for development, as this is significantly slower.
-  preview: false,
+  preview: true,
 });
 
 // You can register any code components that you want to use here; see
@@ -23,3 +27,23 @@ export const PLASMIC = initPlasmicLoader({
 // https://docs.plasmic.app/learn/app-hosting/#set-a-plasmic-project-to-use-your-app-host
 
 // PLASMIC.registerComponent(...);
+
+PLASMIC.registerComponent(HelloWorld, {
+  importPath: './components/plasmic/HelloWorld.tsx', 
+  name: 'HelloWorld',
+  props: {
+    name: {
+      type: 'string',
+      defaultValue: 'Something',
+    }
+  }
+})
+
+PLASMIC.registerComponent(TweetsProvider, {
+  importPath: './components/plasmic/TweetsProvider.tsx', 
+  name: 'TweetsProvider',
+  providesData: true,
+  props: {
+    children: 'slot'
+  }
+})
