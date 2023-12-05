@@ -36,8 +36,17 @@ export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_pr
     ref,
     () => {
       return {
-        deleteStaff(id: number) {
-          setData(currentData => currentData.filter(staff => staff.id !== id));
+        async deleteStaff(id: number) {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+
+          const { error } = await supabase.from("staff").delete().eq("id", id);
+
+          if (error) throw error;
+
+          //setData(currentData => currentData.filter(staff => staff.id !== id));
         }
       };
     },

@@ -31,7 +31,6 @@ export const PLASMIC = initPlasmicLoader({
 // PLASMIC.registerComponent(...);
 
 PLASMIC.registerComponent(HelloWorld, {
-  importPath: './components/plasmic/HelloWorld.tsx', 
   name: 'HelloWorld',
   props: {
     name: {
@@ -42,7 +41,6 @@ PLASMIC.registerComponent(HelloWorld, {
 })
 
 PLASMIC.registerComponent(TweetsProvider, {
-  importPath: './components/plasmic/TweetsProvider.tsx', 
   name: 'TweetsProvider',
   providesData: true,
   props: {
@@ -51,7 +49,6 @@ PLASMIC.registerComponent(TweetsProvider, {
 })
 
 PLASMIC.registerComponent(StaffProvider, {
-  importPath: './components/plasmic/StaffProvider.tsx', 
   name: 'StaffProvider',
   providesData: true,
   props: {
@@ -68,7 +65,6 @@ PLASMIC.registerComponent(StaffProvider, {
 })
 
 PLASMIC.registerComponent(Counter, {
-  importPath: './components/plasmic/Counter.tsx',
   name: 'Counter',
   props: {},
   refActions: {
