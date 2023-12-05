@@ -46,6 +46,11 @@ export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_pr
 
           if (error) throw error;
 
+          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*");
+
+          if(refetchError) throw refetchError;
+
+          setData(refetched);
           //setData(currentData => currentData.filter(staff => staff.id !== id));
         }
       };
