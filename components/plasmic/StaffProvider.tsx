@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle, useOptimistic } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { usePlasmicQueryData } from "@plasmicapp/loader-nextjs";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { createBrowserClient } from "@supabase/ssr";
@@ -46,7 +46,7 @@ export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_pr
 
           if (error) throw error;
 
-          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*");
+          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*").order("name", {ascending: true});
 
           if(refetchError) throw refetchError;
 
@@ -63,7 +63,24 @@ export const StaffProvider = forwardRef<StaffActions>(function StaffProvider(_pr
 
           if (error) throw error;
 
-          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*");
+          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*").order("name", {ascending: true});
+
+          if(refetchError) throw refetchError;
+
+          setData(refetched);
+          //setData(currentData => currentData.filter(staff => staff.id !== id));
+        },
+        async editStaff(staff : {id: number, name: string}) {
+          const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+
+          const { error } = await supabase.from("staff").update({name: staff.name}).eq("id", staff.id);
+
+          if (error) throw error;
+
+          const {data: refetched, error: refetchError} = await supabase.from("staff").select("*").order("name", {ascending: true});
 
           if(refetchError) throw refetchError;
 

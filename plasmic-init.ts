@@ -66,6 +66,12 @@ PLASMIC.registerComponent(StaffProvider, {
       argTypes: [
         {name: 'staff', type: 'object'}
       ]
+    },
+    editStaff: {
+      description: 'edit a staff member',
+      argTypes: [
+        {name: 'staff', type: 'object'}
+      ]
     }
   }
 })
