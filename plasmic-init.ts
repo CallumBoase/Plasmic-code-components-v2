@@ -4,6 +4,7 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 import { HelloWorld } from './components/plasmic/HelloWorld'
 import { TweetsProvider } from './components/plasmic/TweetsProvider'
 import { Counter } from "./components/plasmic/Counter";
+import { StaffProvider } from "./components/plasmic/StaffProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -43,6 +44,15 @@ PLASMIC.registerComponent(HelloWorld, {
 PLASMIC.registerComponent(TweetsProvider, {
   importPath: './components/plasmic/TweetsProvider.tsx', 
   name: 'TweetsProvider',
+  providesData: true,
+  props: {
+    children: 'slot'
+  }
+})
+
+PLASMIC.registerComponent(StaffProvider, {
+  importPath: './components/plasmic/StaffProvider.tsx', 
+  name: 'StaffProvider',
   providesData: true,
   props: {
     children: 'slot'
