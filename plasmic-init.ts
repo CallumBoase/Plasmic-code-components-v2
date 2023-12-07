@@ -1,6 +1,7 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
+import { AuthProvider } from "./components/plasmic/AuthProvider";
 import { UserProvider } from "./components/plasmic/UserProvider";
 import { HelloWorld } from './components/plasmic/HelloWorld'
 import { TweetsProvider } from './components/plasmic/TweetsProvider'
@@ -36,6 +37,8 @@ PLASMIC.registerGlobalContext(UserProvider, {
   props: {},
   providesData: true
 });
+
+PLAM
 
 PLASMIC.registerComponent(HelloWorld, {
   name: 'HelloWorld',
