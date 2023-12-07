@@ -14,7 +14,9 @@ interface StaffProviderProps {
 }
 
 const fetchData = async () => {
+  console.log(window)
   const supabase = supabaseBrowserClient();
+  console.log('fetch data');
   const { data, error } = await supabase
     .from("staff")
     .select("*")

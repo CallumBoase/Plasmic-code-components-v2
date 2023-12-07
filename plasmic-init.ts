@@ -32,11 +32,22 @@ export const PLASMIC = initPlasmicLoader({
 
 // PLASMIC.registerComponent(...);
 
+//Works but makes building hard - only populated after login in PREVIEW or localhost not in builder
 PLASMIC.registerGlobalContext(SupabaseUser, {
   name: 'SupabaseUser',
-  props: {},
+  props: {
+    studioToken: 'string'
+  },
   providesData: true
 });
+
+// PLASMIC.registerComponent(SupabaseUser, {
+//   name: 'SupabaseUser',
+//   props: {
+//     children: 'slot'
+//   },
+//   providesData: true
+// });
 
 PLASMIC.registerComponent(HelloWorld, {
   name: 'HelloWorld',
