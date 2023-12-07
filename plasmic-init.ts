@@ -1,6 +1,7 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
+import { UserProvider } from "./components/plasmic/UserProvider";
 import { HelloWorld } from './components/plasmic/HelloWorld'
 import { TweetsProvider } from './components/plasmic/TweetsProvider'
 import { Counter } from "./components/plasmic/Counter";
@@ -29,6 +30,12 @@ export const PLASMIC = initPlasmicLoader({
 // https://docs.plasmic.app/learn/app-hosting/#set-a-plasmic-project-to-use-your-app-host
 
 // PLASMIC.registerComponent(...);
+
+PLASMIC.registerGlobalContext(UserProvider, {
+  name: 'UserProvider',
+  props: {},
+  providesData: true
+});
 
 PLASMIC.registerComponent(HelloWorld, {
   name: 'HelloWorld',
