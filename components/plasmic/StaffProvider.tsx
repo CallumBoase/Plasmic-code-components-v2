@@ -19,7 +19,10 @@ const fetchData = async () => {
     .from("staff")
     .select("*")
     .order("name", { ascending: true });
-  if (error) throw error;
+  if (error) {
+    console.log(error);
+    throw error;
+  }
   return data;
 };
 
@@ -77,6 +80,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       <>
         {isLoading && <div>Loading...</div>}
         {error && <div>Error: {error.message}</div>}
+        {!data || data.length === 0 && <div>No data</div>}
         {data && (
           <DataProvider name="staff" data={data}>
             {_props.children}
