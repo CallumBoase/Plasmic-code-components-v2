@@ -38,7 +38,26 @@ PLASMIC.registerGlobalContext(UserProvider, {
   providesData: true
 });
 
-PLAM
+PLASMIC.registerComponent(AuthProvider, {
+  name: 'AuthProvider',
+  props: {
+    children: 'slot'
+  },
+  providesData: true,
+  refActions: {
+    login: {
+      description: 'Login a user',
+      argTypes: [
+        {name: 'username', type: 'string'},
+        {name: 'password', type: 'string'}
+      ]
+    },
+    logout: {
+      description: 'Logout a user',
+      argTypes: []
+    }
+  }
+});
 
 PLASMIC.registerComponent(HelloWorld, {
   name: 'HelloWorld',
