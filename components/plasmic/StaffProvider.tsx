@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { usePlasmicQueryData, DataProvider } from "@plasmicapp/loader-nextjs";
 import type { Database } from "@/types/supabase";
-import supabaseBrowserClient from "@/utils/supabaseBrowser";
+import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 
 interface StaffActions {
   deleteStaff(id: number): void;
