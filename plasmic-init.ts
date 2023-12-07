@@ -1,8 +1,8 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
-import { AuthProvider } from "./components/plasmic/AuthProvider";
-import { UserProvider } from "./components/plasmic/UserProvider";
+import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
+// import { UserProvider } from "./components/plasmic/UserProvider";
 import { HelloWorld } from './components/plasmic/HelloWorld'
 import { TweetsProvider } from './components/plasmic/TweetsProvider'
 import { Counter } from "./components/plasmic/Counter";
@@ -32,42 +32,11 @@ export const PLASMIC = initPlasmicLoader({
 
 // PLASMIC.registerComponent(...);
 
-PLASMIC.registerGlobalContext(UserProvider, {
-  name: 'UserProvider',
+PLASMIC.registerGlobalContext(SupabaseUser, {
+  name: 'SupabaseUser',
   props: {},
   providesData: true
 });
-
-PLASMIC.registerGlobalContext(AuthProvider, {
-  name: 'AuthProvider',
-  props: {},
-  providesData: true
-})
-
-// PLASMIC.registerComponent(AuthProvider, {
-//   name: 'AuthProvider',
-//   props: {
-//     children: 'slot'
-//   },
-//   providesData: true,
-//   refActions: {
-//     login: {
-//       description: 'Login a user',
-//       argTypes: [
-//         {name: 'username', type: 'string'},
-//         {name: 'password', type: 'string'}
-//       ]
-//     },
-//     logout: {
-//       description: 'Logout a user',
-//       argTypes: []
-//     },
-//     refetchSession: {
-//       description: 'Refetch the session',
-//       argTypes: []
-//     }
-//   }
-// });
 
 PLASMIC.registerComponent(HelloWorld, {
   name: 'HelloWorld',
