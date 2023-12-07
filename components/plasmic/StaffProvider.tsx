@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { usePlasmicQueryData, DataProvider } from "@plasmicapp/loader-nextjs";
-import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
+import supabaseBrowserClient from "@/utils/supabaseBrowser";
 
 interface StaffActions {
   deleteStaff(id: number): void;
@@ -13,15 +13,8 @@ interface StaffProviderProps {
   children: React.ReactNode;
 }
 
-const initSupabase = () => {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-};
-
 const fetchData = async () => {
-  const supabase = initSupabase();
+  const supabase = supabaseBrowserClient();
   const { data, error } = await supabase
     .from("staff")
     .select("*")
@@ -56,19 +49,19 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       ref,
       () => ({
         deleteStaff: async (id) => {
-          const supabase = initSupabase();
+          const supabase = supabaseBrowserClient();
           const { error } = await supabase.from("staff").delete().eq("id", id);
           if (error) throw error;
           await refetchData();
         },
         addStaff: async (staff) => {
-          const supabase = initSupabase();
+          const supabase = supabaseBrowserClient();
           const { error } = await supabase.from("staff").insert(staff);
           if (error) throw error;
           await refetchData();
         },
         editStaff: async (staff) => {
-          const supabase = initSupabase();
+          const supabase = supabaseBrowserClient();
           const { error } = await supabase
             .from("staff")
             .update(staff)
