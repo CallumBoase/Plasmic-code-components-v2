@@ -47,6 +47,8 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     }, [simulateUserSettings]);
 
     //Fetch the data using plasmic studio methods
+    //This is OFF in order to fix the strange caching / revalidation isues
+    //*****IDEA: we could use native swr or some other caching method to help here******
     // const {
     //   data: fetchedData,
     //   error,
@@ -56,6 +58,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Store the fetched data in state
     const [data, setData] = useState<Database["public"]["Tables"]["staff"]["Row"][] | null>(null);
 
+    //Was needed when fetching data using plasmic studio methods
     // useEffect(() => {
     //   console.log('useEffect')
     //   if (fetchedData) {
