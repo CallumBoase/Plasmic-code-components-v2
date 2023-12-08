@@ -2,7 +2,6 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
 import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
-// import { UserProvider } from "./components/plasmic/UserProvider";
 import { HelloWorld } from './components/plasmic/HelloWorld'
 import { TweetsProvider } from './components/plasmic/TweetsProvider'
 import { Counter } from "./components/plasmic/Counter";

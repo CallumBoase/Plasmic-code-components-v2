@@ -12,6 +12,7 @@ import {
 } from "@plasmicapp/loader-nextjs";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
+import { mutate } from "swr";
 
 interface StaffActions {
   refetchData(): Promise<void>;
@@ -26,9 +27,12 @@ interface StaffProviderProps {
 
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
+    
+    //Get a value from the Studio Data Environment
     const dataEnv = useDataEnv();
     const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
 
+    //Function we can call to fetch data
     const fetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { data, error } = await supabase
@@ -41,16 +45,18 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       return data;
     }, [simulateUserSettings]);
 
+    //Actually fetching the data
     const {
       data: fetchedData,
       error,
       isLoading,
     } = usePlasmicQueryData("/staff", fetchData);
-    const [data, setData] = useState<
-      Database["public"]["Tables"]["staff"]["Row"][] | null
-    >(null);
+    
+    //Store the fetched data in state
+    const [data, setData] = useState<Database["public"]["Tables"]["staff"]["Row"][] | null>(null);
 
     useEffect(() => {
+      console.log('useEffect')
       if (fetchedData) {
         setData(fetchedData);
       }
