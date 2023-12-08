@@ -47,21 +47,26 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     }, [simulateUserSettings]);
 
     //Fetch the data using plasmic studio methods
-    const {
-      data: fetchedData,
-      error,
-      isLoading,
-    } = usePlasmicQueryData("/staff", fetchData);
+    // const {
+    //   data: fetchedData,
+    //   error,
+    //   isLoading,
+    // } = usePlasmicQueryData("/staff", fetchData);
     
     //Store the fetched data in state
     const [data, setData] = useState<Database["public"]["Tables"]["staff"]["Row"][] | null>(null);
 
+    // useEffect(() => {
+    //   console.log('useEffect')
+    //   if (fetchedData) {
+    //     setData(fetchedData);
+    //   }
+    // }, [fetchedData]);
+
     useEffect(() => {
       console.log('useEffect')
-      if (fetchedData) {
-        setData(fetchedData);
-      }
-    }, [fetchedData]);
+      fetchData().then((data) => setData(data));
+    },[fetchData])
 
     //Define element actions which can be called outside this component
     useImperativeHandle(
@@ -101,8 +106,8 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Render elements on the page
     return (
       <>
-        {isLoading && <div>Loading...</div>}
-        {error && <div>Error: {error.message}</div>}
+        {/* {isLoading && <div>Loading...</div>}
+        {error && <div>Error: {error.message}</div>} */}
         {!data || (data.length === 0 && <div>No data</div>)}
         {data && (
           <DataProvider name="staff" data={data}>
