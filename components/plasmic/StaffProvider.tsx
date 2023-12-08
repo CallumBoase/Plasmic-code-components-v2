@@ -27,11 +27,13 @@ interface StaffProviderProps {
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
     
-    //Get a value from the Studio Data Environment
+    //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
+    //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
+    //Because iframe rendered app (in studio) can't access localStorage or Cookies when auth tokens are stored
     const dataEnv = useDataEnv();
     const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
 
-    //Function we can call to fetch data
+    //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { data, error } = await supabase
@@ -44,7 +46,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       return data;
     }, [simulateUserSettings]);
 
-    //Actually fetching the data
+    //Fetch the data using plasmic studio methods
     const {
       data: fetchedData,
       error,
