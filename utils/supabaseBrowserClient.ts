@@ -4,8 +4,8 @@ import type { Database } from "@/types/supabase";
 
 type SimulateUserSettings = {
   simulateLoggedInUser: boolean;
-  email: string;
-  password: string;
+  email: string | null;
+  password: string | null;
 };
 
 const supabaseBrowserClient = async (
