@@ -1,9 +1,20 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { usePlasmicQueryData, DataProvider } from "@plasmicapp/loader-nextjs";
+import {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+  useCallback,
+} from "react";
+import {
+  usePlasmicQueryData,
+  DataProvider,
+  useDataEnv,
+} from "@plasmicapp/loader-nextjs";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 
 interface StaffActions {
+  refetchData(): Promise<void>;
   deleteStaff(id: number): void;
   addStaff(staff: { name: string }): void;
   editStaff(staff: { id: number; name: string }): void;
@@ -13,23 +24,23 @@ interface StaffProviderProps {
   children: React.ReactNode;
 }
 
-const fetchData = async () => {
-  console.log(window)
-  const supabase = supabaseBrowserClient();
-  console.log('fetch data');
-  const { data, error } = await supabase
-    .from("staff")
-    .select("*")
-    .order("name", { ascending: true });
-  if (error) {
-    console.log(error);
-    throw error;
-  }
-  return data;
-};
-
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
+    const dataEnv = useDataEnv();
+    const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
+
+    const fetchData = useCallback(async () => {
+      const supabase = await supabaseBrowserClient(simulateUserSettings);
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*")
+        .order("name", { ascending: true });
+      if (error) {
+        throw error;
+      }
+      return data;
+    }, [simulateUserSettings]);
+
     const {
       data: fetchedData,
       error,
@@ -45,44 +56,46 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       }
     }, [fetchedData]);
 
-    const refetchData = async () => {
-      const newData = await fetchData();
-      setData(newData);
-    };
-
     useImperativeHandle(
       ref,
       () => ({
+        refetchData: async () => {
+          const newData = await fetchData();
+          setData(newData);
+        },
         deleteStaff: async (id) => {
-          const supabase = supabaseBrowserClient();
+          const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase.from("staff").delete().eq("id", id);
           if (error) throw error;
-          await refetchData();
+          const newData = await fetchData();
+          setData(newData);
         },
         addStaff: async (staff) => {
-          const supabase = supabaseBrowserClient();
+          const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase.from("staff").insert(staff);
           if (error) throw error;
-          await refetchData();
+          const newData = await fetchData();
+          setData(newData);
         },
         editStaff: async (staff) => {
-          const supabase = supabaseBrowserClient();
+          const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase
             .from("staff")
             .update(staff)
             .eq("id", staff.id);
           if (error) throw error;
-          await refetchData();
+          const newData = await fetchData();
+          setData(newData);
         },
       }),
-      []
+      [simulateUserSettings, fetchData]
     );
 
     return (
       <>
         {isLoading && <div>Loading...</div>}
         {error && <div>Error: {error.message}</div>}
-        {!data || data.length === 0 && <div>No data</div>}
+        {!data || (data.length === 0 && <div>No data</div>)}
         {data && (
           <DataProvider name="staff" data={data}>
             {_props.children}

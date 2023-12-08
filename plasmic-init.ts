@@ -36,7 +36,9 @@ export const PLASMIC = initPlasmicLoader({
 PLASMIC.registerGlobalContext(SupabaseUser, {
   name: 'SupabaseUser',
   props: {
-    studioToken: 'string'
+    simulateLoggedInUser: 'boolean',
+    email: 'string',
+    password: 'string',
   },
   providesData: true
 });
@@ -74,6 +76,10 @@ PLASMIC.registerComponent(StaffProvider, {
     children: 'slot'
   },
   refActions: {
+    refetchData: {
+      description: 'refetch staff from the database',
+      argTypes: []
+    },
     deleteStaff: {
       description: 'delete a staff member',
       argTypes: [

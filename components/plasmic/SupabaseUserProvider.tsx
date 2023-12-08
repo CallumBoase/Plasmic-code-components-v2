@@ -16,10 +16,18 @@ interface DataProviderData {
   logout(): Promise<void>;
   fetchSession(): Promise<void>;
   user: SupabaseUserData | null;
+  simulateUserSettings: {
+    simulateLoggedInUser: boolean;
+    email: string | null;
+    password: string | null;
+  }
 }
 
 interface SupabaseUserComponentProps {
   children: React.ReactNode;
+  simulateLoggedInUser: boolean;
+  email: string | null;
+  password: string | null;
 }
 
 type User = {
@@ -31,7 +39,7 @@ type User = {
 };
 
 const getSession = async () => {
-  const supabase = supabaseBrowserClient();
+  const supabase = await supabaseBrowserClient();
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   return data;
@@ -55,7 +63,8 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabaseBrowserClient().auth.signInWithPassword({
+    const supabase = await supabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -64,7 +73,8 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   };
 
   const logout = async () => {
-    const { error } = await supabaseBrowserClient().auth.signOut();
+    const supabase = await supabaseBrowserClient();
+    const { error } = await supabase.auth.signOut();
     if (error) throw error;
     fetchSession();
   };
@@ -74,6 +84,11 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
     logout,
     fetchSession,
     user: session,
+    simulateUserSettings: {
+      simulateLoggedInUser: props.simulateLoggedInUser,
+      email: props.email,
+      password: props.password,
+    }
   };
 
   return (

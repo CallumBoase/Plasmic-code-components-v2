@@ -2,7 +2,6 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  console.log(request.nextUrl.pathname);
 
   //https://supabase.com/docs/guides/auth/server-side/creating-a-client?environment=middleware
   let response = NextResponse.next({
@@ -53,7 +52,7 @@ export async function middleware(request: NextRequest) {
 
   //Retrieve the session from the request
   const { data } = await supabase.auth.getSession();
-  console.log(data?.session?.access_token)
+
   const isLoggedIn = data?.session?.user;
 
   if (request.nextUrl.pathname === "/login") {
@@ -67,17 +66,6 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 }
-
-// This function can be marked `async` if using `await` inside
-// export function middleware(request: NextRequest) {
-//   console.log('hello from middleware')
-//   // if(Math.random() > 0.5) {
-//     return NextResponse.next()
-
-//   // } else {
-//     // return NextResponse.redirect(new URL('/', request.url))
-//   // }
-// }
 
 // // See "Matching Paths" below to learn more
 export const config = {
