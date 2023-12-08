@@ -12,7 +12,6 @@ import {
 } from "@plasmicapp/loader-nextjs";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
-import { mutate } from "swr";
 
 interface StaffActions {
   refetchData(): Promise<void>;
@@ -62,6 +61,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       }
     }, [fetchedData]);
 
+    //Define element actions which can be called outside this component
     useImperativeHandle(
       ref,
       () => ({
@@ -94,7 +94,6 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
           setData(newData);
         },
       }),
-      [simulateUserSettings, fetchData]
     );
 
     return (
