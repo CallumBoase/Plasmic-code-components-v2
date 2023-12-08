@@ -96,7 +96,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       }),
     );
     
-    //The actual component
+    //Render elements on the page
     return (
       <>
         {isLoading && <div>Loading...</div>}
