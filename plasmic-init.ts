@@ -72,7 +72,42 @@ PLASMIC.registerComponent(StaffProvider, {
   name: 'StaffProvider',
   providesData: true,
   props: {
-    children: 'slot'
+    children: 'slot',
+    loading: {
+      type: 'slot',
+      defaultValue: {
+        type: 'text',
+        value: 'Loading...'
+      }
+    },
+    validating: {
+      type: 'slot',
+      defaultValue: {
+        type: 'text',
+        value: 'Validating...'
+      }
+    },
+    currentlyActiveError: {
+      type: 'slot',
+      defaultValue: {
+        type: 'text',
+        value: 'Error not yet resolved'
+      }
+    },
+    latestError: {
+      type: 'slot',
+      defaultValue: [
+        {type: 'text', value: 'Error click to clear'},
+        {type: 'button', value: 'Clear error'}
+      ]
+    },
+    noData: {
+      type: 'slot',
+      defaultValue: {
+        type: 'text',
+        value: 'No data'
+      }
+    }
   },
   refActions: {
     refetchData: {
@@ -96,6 +131,10 @@ PLASMIC.registerComponent(StaffProvider, {
       argTypes: [
         {name: 'staff', type: 'object'}
       ]
+    },
+    clearError: {
+      description: 'clear the latest error message',
+      argTypes: []
     }
   }
 })

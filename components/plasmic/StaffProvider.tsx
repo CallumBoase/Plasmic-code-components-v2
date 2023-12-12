@@ -27,6 +27,11 @@ interface StaffActions {
 
 interface StaffProviderProps {
   children: React.ReactNode;
+  loading: React.ReactNode;
+  validating: React.ReactNode;
+  noData: React.ReactNode;
+  currentlyActiveError: React.ReactNode;
+  latestError: React.ReactNode;
 }
 
 //Define the staff provider component
@@ -57,21 +62,27 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       data: fetchedData,
       error,
       mutate,
+      isValidating,
     } = useSWR("/staff", fetchData);
     
     //Store the fetched data in state
     const [data, setData] = useState<StaffRows>(null);
+    const [latestError, setLatestError] = useState<Error | null>(null);
 
     useEffect(() => {
-      console.log('useEffect')
       if (fetchedData) {
         setData(fetchedData);
       }
     }, [fetchedData]);
 
-    //Add an optimistic row to the data
-    //Necessary since we are missing id and created_at fields when adding a new row
-    //Until we get the response from the server
+    useEffect(() => {
+      if (error) {
+        setLatestError(error);
+      }
+    }, [error]);
+    
+
+    //Define functions to add, edit and delete staff
     const addOptimisticRowToDataState = (data : StaffRows | null, staff : StaffFromAddForm) => {
       const opsimisticRow = {
         id: Math.random(),
@@ -81,8 +92,8 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       return [...(data || []), opsimisticRow].sort((a, b) => a.name > b.name ? 1 : -1);
     }
 
-    //Define functions to add, edit and delete staff
     const addStaff = useCallback(async (staff : StaffFromAddForm) => {
+      if(Math.random() > 0.5) throw new Error('Random error')
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { error } = await supabase.from("staff").insert(staff);
       if (error) throw error;
@@ -100,6 +111,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     }
 
     const editStaff = useCallback(async (staff : StaffRow) => {
+      if(Math.random() > 0.5) throw new Error('Random error')
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { error } = await supabase
         .from("staff")
@@ -114,6 +126,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     }
 
     const deleteStaff = useCallback(async (id : StaffRow["id"]) => {
+      if(Math.random() > 0.5) throw new Error('Random error')
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { error } = await supabase.from("staff").delete().eq("id", id);
       if (error) throw error;
@@ -126,25 +139,28 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       ref,
       () => ({
         refetchData: async () => {
-          mutate()
+          mutate().catch((err) => console.error(err))
         },
         deleteStaff: async (id) => {
-          await mutate(deleteStaff(id), {
+          mutate(deleteStaff(id), {
             populateCache: true,
             optimisticData: deleteRowFromDataState(data, id),
-          })
+          }).catch((err) => console.error(err))
         },
         addStaff: async (staff) => {
           mutate(addStaff(staff), {
             populateCache: true,
             optimisticData: addOptimisticRowToDataState(data, staff),
-          })
+          }).catch((err) => console.error(err))
         },
         editStaff: async (staff) => {
           mutate(editStaff(staff), {
             populateCache: true,
             optimisticData: editRowInDataState(data, staff),
-          })
+          }).catch((err) => console.error(err))
+        },
+        clearError: () => {
+          setLatestError(null);
         }
       }),
     );
@@ -152,11 +168,19 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Render elements on the page
     return (
       <>
-        {/* {isLoading && <div>Loading...</div>} */}
-        {error && <div>Error: {error.message}</div>}
-        {!data || (data.length === 0 && <div>No data</div>)}
+        {(isValidating && !fetchedData) &&  _props.loading}
+        {isValidating && _props.validating}
+        {(!data || data.length === 0) && _props.noData}
+        {error && _props.currentlyActiveError}
+        {latestError && _props.latestError}
         {data && (
-          <DataProvider name="staff" data={data}>
+          <DataProvider name="staff" data={{
+            isLoading: isValidating && !fetchedData,
+            isValidating,
+            currentlyActiveError: error,
+            latestError,
+            data
+          }}>
             {_props.children}
           </DataProvider>
         )}
