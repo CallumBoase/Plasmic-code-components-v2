@@ -6,27 +6,31 @@ import {
   useCallback,
 } from "react";
 import {
-  usePlasmicQueryData,
   DataProvider,
   useDataEnv,
 } from "@plasmicapp/loader-nextjs";
-import { useMutablePlasmicQueryData } from "@plasmicapp/query";
-import { usePlasmicInvalidate } from "@plasmicapp/data-sources";
-import { mutate } from "swr";
+import useSWR from "swr";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 
+//Declare types
+
+type StaffRow = Database["public"]["Tables"]["staff"]["Row"];
+type StaffFromAddForm = Pick<StaffRow, "name">
+type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
+
 interface StaffActions {
   refetchData(): Promise<void>;
-  deleteStaff(id: number): void;
-  addStaff(staff: { name: string }): void;
-  editStaff(staff: { id: number; name: string }): void;
+  deleteStaff(id: StaffRow["id"]): void;
+  addStaff(staff: StaffFromAddForm): void;
+  editStaff(staff: StaffRow): void;
 }
 
 interface StaffProviderProps {
   children: React.ReactNode;
 }
 
+//Define the staff provider component
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
     
@@ -35,7 +39,6 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Because iframe rendered app (in studio) can't access localStorage or Cookies when auth tokens are stored
     const dataEnv = useDataEnv();
     const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
-
 
     //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
@@ -50,35 +53,16 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       return data;
     }, [simulateUserSettings]);
 
-    //Doesn't seem to work at all!
-    //const refresh = usePlasmicInvalidate();
-
-    //Fetch the data using plasmic studio methods
-    //This is OFF in order to fix the strange caching / revalidation isues
-    //*****IDEA: we could use native swr or some other caching method to help here******
-    //This seems to work but only if revalidateIfStale is set to true??
+    //Fetch data using SWR
     const {
       data: fetchedData,
       error,
-      isLoading
-    } = useMutablePlasmicQueryData("/staff", fetchData, {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      //See https://github.com/plasmicapp/plasmic/blob/master/packages/data-sources/src/hooks/usePlasmicDataOp.tsx#L379
-      revalidateIfStale: false,
-    });
-
-    //This now seems to work with mutate
-    // const {
-    //   data: fetchedData,
-    //   error,
-    //   isLoading
-    // } = usePlasmicQueryData("/staff", fetchData);
+      mutate,
+    } = useSWR("/staff", fetchData);
     
     //Store the fetched data in state
-    const [data, setData] = useState<Database["public"]["Tables"]["staff"]["Row"][] | null>(null);
+    const [data, setData] = useState<StaffRows>(null);
 
-    //Was needed when fetching data using plasmic studio methods
     useEffect(() => {
       console.log('useEffect')
       if (fetchedData) {
@@ -86,34 +70,69 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       }
     }, [fetchedData]);
 
-    //Define element actions which can be called outside this component
+    //Add an optimistic row to the data
+    //Necessary since we are missing id and created_at fields when adding a new row
+    //Until we get the response from the server
+    const dataWithOptimisticRow = (data : StaffRows | null, staff : StaffFromAddForm) => {
+      const opsimisticRow = {
+        id: Math.random(),
+        name: staff.name,
+        created_at: new Date().toISOString(),
+      }
+      return [...(data || []), opsimisticRow].sort((a, b) => a.name > b.name ? 1 : -1);
+    }
+
+    //Define functions to add, edit and delete staff
+    const addStaff = useCallback(async (staff : StaffFromAddForm) => {
+      const supabase = await supabaseBrowserClient(simulateUserSettings);
+      const { error } = await supabase.from("staff").insert(staff);
+      if (error) throw error;
+      return dataWithOptimisticRow(data, staff);
+    }, [simulateUserSettings, data]);
+
+    const editStaff = useCallback(async (staff : StaffRow) => {
+      const supabase = await supabaseBrowserClient(simulateUserSettings);
+      const { error } = await supabase
+        .from("staff")
+        .update(staff)
+        .eq("id", staff.id);
+      if (error) throw error;
+      return [...(data || []), staff];
+    }, [simulateUserSettings, data]);
+
+    const deleteStaff = useCallback(async (id : StaffRow["id"]) => {
+      const supabase = await supabaseBrowserClient(simulateUserSettings);
+      const { error } = await supabase.from("staff").delete().eq("id", id);
+      if (error) throw error;
+      return data?.filter((staff) => staff.id !== id) || [];
+    }, [simulateUserSettings, data]);
+
+    //Define element actions which can be called outside this component in Plasmic Studio
+    //Note the opsimistic updates
     useImperativeHandle(
       ref,
       () => ({
         refetchData: async () => {
-          mutate('/staff')
+          mutate()
         },
         deleteStaff: async (id) => {
-          const supabase = await supabaseBrowserClient(simulateUserSettings);
-          const { error } = await supabase.from("staff").delete().eq("id", id);
-          if (error) throw error;
-          mutate('/staff')
+          await mutate(deleteStaff(id), {
+            populateCache: true,
+            optimisticData: data?.filter((staff) => staff.id !== id),
+          })
         },
         addStaff: async (staff) => {
-          const supabase = await supabaseBrowserClient(simulateUserSettings);
-          const { error } = await supabase.from("staff").insert(staff);
-          if (error) throw error;
-          mutate('/staff')
+          mutate(addStaff(staff), {
+            populateCache: true,
+            optimisticData: dataWithOptimisticRow(data, staff),
+          })
         },
         editStaff: async (staff) => {
-          const supabase = await supabaseBrowserClient(simulateUserSettings);
-          const { error } = await supabase
-            .from("staff")
-            .update(staff)
-            .eq("id", staff.id);
-          if (error) throw error;
-          mutate('/staff')
-        },
+          mutate(editStaff(staff), {
+            populateCache: true,
+            optimisticData: [...(data || []), staff],
+          })
+        }
       }),
     );
     
