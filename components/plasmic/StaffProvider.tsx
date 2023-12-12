@@ -57,22 +57,23 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //This is OFF in order to fix the strange caching / revalidation isues
     //*****IDEA: we could use native swr or some other caching method to help here******
     //This seems to work but only if revalidateIfStale is set to true??
-    // const {
-    //   data: fetchedData,
-    //   error,
-    //   isLoading
-    // } = useMutablePlasmicQueryData("/staff", fetchData, {
-    //   revalidateOnFocus: false,
-    //   revalidateOnReconnect: false,
-    //   //See https://github.com/plasmicapp/plasmic/blob/master/packages/data-sources/src/hooks/usePlasmicDataOp.tsx#L379
-    //   revalidateIfStale: false,
-    // });
-
     const {
       data: fetchedData,
       error,
       isLoading
-    } = usePlasmicQueryData("/staff", fetchData);
+    } = useMutablePlasmicQueryData("/staff", fetchData, {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      //See https://github.com/plasmicapp/plasmic/blob/master/packages/data-sources/src/hooks/usePlasmicDataOp.tsx#L379
+      revalidateIfStale: false,
+    });
+
+    //This now seems to work with mutate
+    // const {
+    //   data: fetchedData,
+    //   error,
+    //   isLoading
+    // } = usePlasmicQueryData("/staff", fetchData);
     
     //Store the fetched data in state
     const [data, setData] = useState<Database["public"]["Tables"]["staff"]["Row"][] | null>(null);
