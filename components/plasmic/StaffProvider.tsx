@@ -62,8 +62,8 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //   error,
     //   isLoading
     // } = useMutablePlasmicQueryData("/staff", fetchData, {
-    //   revalidateOnFocus: true,
-    //   revalidateOnReconnect: true,
+    //   revalidateOnFocus: false,
+    //   revalidateOnReconnect: false,
     //   //See https://github.com/plasmicapp/plasmic/blob/master/packages/data-sources/src/hooks/usePlasmicDataOp.tsx#L379
     //   revalidateIfStale: false,
     // });
@@ -84,11 +84,6 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
         setData(fetchedData);
       }
     }, [fetchedData]);
-
-    // useEffect(() => {
-    //   console.log('useEffect')
-    //   fetchData().then((data) => setData(data));
-    // },[fetchData])
 
     //Define element actions which can be called outside this component
     useImperativeHandle(
@@ -124,8 +119,8 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Render elements on the page
     return (
       <>
-        {/* {isLoading && <div>Loading...</div>}
-        {error && <div>Error: {error.message}</div>} */}
+        {/* {isLoading && <div>Loading...</div>} */}
+        {error && <div>Error: {error.message}</div>}
         {!data || (data.length === 0 && <div>No data</div>)}
         {data && (
           <DataProvider name="staff" data={data}>
