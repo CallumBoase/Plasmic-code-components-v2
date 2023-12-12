@@ -57,16 +57,22 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //This is OFF in order to fix the strange caching / revalidation isues
     //*****IDEA: we could use native swr or some other caching method to help here******
     //This seems to work but only if revalidateIfStale is set to true??
+    // const {
+    //   data: fetchedData,
+    //   error,
+    //   isLoading
+    // } = useMutablePlasmicQueryData("/staff", fetchData, {
+    //   revalidateOnFocus: true,
+    //   revalidateOnReconnect: true,
+    //   //See https://github.com/plasmicapp/plasmic/blob/master/packages/data-sources/src/hooks/usePlasmicDataOp.tsx#L379
+    //   revalidateIfStale: false,
+    // });
+
     const {
       data: fetchedData,
       error,
       isLoading
-    } = useMutablePlasmicQueryData("/staff", fetchData, {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      //See https://github.com/plasmicapp/plasmic/blob/master/packages/data-sources/src/hooks/usePlasmicDataOp.tsx#L379
-      // revalidateIfStale: false,
-    });
+    } = usePlasmicQueryData("/staff", fetchData);
     
     //Store the fetched data in state
     const [data, setData] = useState<Database["public"]["Tables"]["staff"]["Row"][] | null>(null);
@@ -89,31 +95,19 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       ref,
       () => ({
         refetchData: async () => {
-          //SWR mutate breaks it
-          //mutate('/staff')
-          //Didn't seem to work at all
-          // refresh(['/staff'])
-          //Original option that does work
-          // const newData = await fetchData();
-          // setData(newData);
+          mutate('/staff')
         },
         deleteStaff: async (id) => {
           const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase.from("staff").delete().eq("id", id);
           if (error) throw error;
-          //mutate('/staff')
-          // refresh(['/staff'])
-          // const newData = await fetchData();
-          // setData(newData);
+          mutate('/staff')
         },
         addStaff: async (staff) => {
           const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase.from("staff").insert(staff);
           if (error) throw error;
-          //mutate('/staff')
-          // refresh(['/staff'])
-          // const newData = await fetchData();
-          // setData(newData);
+          mutate('/staff')
         },
         editStaff: async (staff) => {
           const supabase = await supabaseBrowserClient(simulateUserSettings);
@@ -122,10 +116,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
             .update(staff)
             .eq("id", staff.id);
           if (error) throw error;
-          //mutate('/staff')
-          // refresh(['/staff'])
-          // const newData = await fetchData();
-          // setData(newData);
+          mutate('/staff')
         },
       }),
     );
