@@ -32,6 +32,11 @@ interface StaffProviderProps {
   noData: React.ReactNode;
   currentlyActiveError: React.ReactNode;
   latestError: React.ReactNode;
+  forceNoData: boolean;
+  forceCurrentlyActiveError: boolean;
+  forceLatestError: boolean;
+  forceLoading: boolean;
+  forceValidating: boolean;
 }
 
 //Define the staff provider component
@@ -168,18 +173,18 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Render elements on the page
     return (
       <>
-        {(isValidating && !fetchedData) &&  _props.loading}
-        {isValidating && _props.validating}
-        {(!data || data.length === 0) && _props.noData}
-        {error && _props.currentlyActiveError}
-        {latestError && _props.latestError}
+        {((isValidating && !fetchedData) || _props.forceLoading) &&  _props.loading}
+        {(isValidating || _props.forceValidating) && _props.validating}
+        {((!data || data.length === 0) || _props.forceNoData) && _props.noData}
+        {(error || _props.forceCurrentlyActiveError) && _props.currentlyActiveError}
+        {(latestError || _props.forceLatestError) && _props.latestError}
         {data && (
           <DataProvider name="staff" data={{
-            isLoading: isValidating && !fetchedData,
-            isValidating,
-            currentlyActiveError: error,
-            latestError,
-            data
+            isLoading: (isValidating && !fetchedData) || _props.forceLoading,
+            isValidating: isValidating || _props.forceValidating,
+            currentlyActiveError: error || _props.forceCurrentlyActiveError,
+            latestError: latestError || _props.forceLatestError,
+            data: _props.forceNoData ? null : data,
           }}>
             {_props.children}
           </DataProvider>

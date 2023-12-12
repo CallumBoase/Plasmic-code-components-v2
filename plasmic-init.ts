@@ -2,8 +2,8 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
 import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
-import { HelloWorld } from './components/plasmic/HelloWorld'
-import { TweetsProvider } from './components/plasmic/TweetsProvider'
+import { HelloWorld } from "./components/plasmic/HelloWorld";
+import { TweetsProvider } from "./components/plasmic/TweetsProvider";
 import { Counter } from "./components/plasmic/Counter";
 import { StaffProvider } from "./components/plasmic/StaffProvider";
 
@@ -11,7 +11,8 @@ export const PLASMIC = initPlasmicLoader({
   projects: [
     {
       id: "j5kwR4gbf2MEZDV6eJXqij",
-      token: "Pl18l30xNglhCwI6AasBpyByr1md0I50BDEAeCA17435huuiOp5MIXP7aMPzKuQALoImfqDgfsjnypoUI1w",
+      token:
+        "Pl18l30xNglhCwI6AasBpyByr1md0I50BDEAeCA17435huuiOp5MIXP7aMPzKuQALoImfqDgfsjnypoUI1w",
     },
   ],
 
@@ -33,13 +34,13 @@ export const PLASMIC = initPlasmicLoader({
 
 //Works but makes building hard - only populated after login in PREVIEW or localhost not in builder
 PLASMIC.registerGlobalContext(SupabaseUser, {
-  name: 'SupabaseUser',
+  name: "SupabaseUser",
   props: {
-    simulateLoggedInUser: 'boolean',
-    email: 'string',
-    password: 'string',
+    simulateLoggedInUser: "boolean",
+    email: "string",
+    password: "string",
   },
-  providesData: true
+  providesData: true,
 });
 
 // PLASMIC.registerComponent(SupabaseUser, {
@@ -51,114 +52,113 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
 // });
 
 PLASMIC.registerComponent(HelloWorld, {
-  name: 'HelloWorld',
+  name: "HelloWorld",
   props: {
     name: {
-      type: 'string',
-      defaultValue: 'Something',
-    }
-  }
-})
+      type: "string",
+      defaultValue: "Something",
+    },
+  },
+});
 
 PLASMIC.registerComponent(TweetsProvider, {
-  name: 'TweetsProvider',
+  name: "TweetsProvider",
   providesData: true,
   props: {
-    children: 'slot'
-  }
-})
+    children: "slot",
+  },
+});
 
 PLASMIC.registerComponent(StaffProvider, {
-  name: 'StaffProvider',
+  name: "StaffProvider",
   providesData: true,
   props: {
-    children: 'slot',
+    children: "slot",
     loading: {
-      type: 'slot',
+      type: "slot",
       defaultValue: {
-        type: 'text',
-        value: 'Loading...'
-      }
+        type: "text",
+        value: "Loading...",
+      },
     },
+    forceLoading: 'boolean',
     validating: {
-      type: 'slot',
+      type: "slot",
       defaultValue: {
-        type: 'text',
-        value: 'Validating...'
-      }
+        type: "text",
+        value: "Validating...",
+      },
     },
+    forceValidating: 'boolean',
     currentlyActiveError: {
-      type: 'slot',
+      type: "slot",
       defaultValue: {
-        type: 'text',
-        value: 'Error not yet resolved'
-      }
+        type: "text",
+        value: "Error not yet resolved",
+      },
     },
+    forceCurrentlyActiveError: 'boolean',
     latestError: {
-      type: 'slot',
+      type: "slot",
       defaultValue: [
-        {type: 'text', value: 'Error click to clear'},
-        {type: 'button', value: 'Clear error'}
-      ]
+        { type: "text", value: "Error click to clear" },
+        { type: "button", value: "Clear error" },
+      ],
     },
+    forceLatestError: 'boolean',
     noData: {
-      type: 'slot',
+      type: "slot",
       defaultValue: {
-        type: 'text',
-        value: 'No data'
-      }
-    }
+        type: "text",
+        value: "No data",
+      },
+    },
+    forceNoData: 'boolean',
   },
   refActions: {
     refetchData: {
-      description: 'refetch staff from the database',
-      argTypes: []
+      description: "refetch staff from the database",
+      argTypes: [],
     },
     deleteStaff: {
-      description: 'delete a staff member',
-      argTypes: [
-        {name: 'Staff ID', type: 'number'}
-      ]
+      description: "delete a staff member",
+      argTypes: [{ name: "Staff ID", type: "number" }],
     },
     addStaff: {
-      description: 'add a staff member',
-      argTypes: [
-        {name: 'staff', type: 'object'}
-      ]
+      description: "add a staff member",
+      argTypes: [{ name: "staff", type: "object" }],
     },
     editStaff: {
-      description: 'edit a staff member',
-      argTypes: [
-        {name: 'staff', type: 'object'}
-      ]
+      description: "edit a staff member",
+      argTypes: [{ name: "staff", type: "object" }],
     },
     clearError: {
-      description: 'clear the latest error message',
-      argTypes: []
-    }
-  }
-})
+      description: "clear the latest error message",
+      argTypes: [],
+    },
+  },
+});
 
 PLASMIC.registerComponent(Counter, {
-  name: 'Counter',
+  name: "Counter",
   props: {},
   refActions: {
     increment: {
-      description: 'Add one to the counter',
-      argTypes: []
+      description: "Add one to the counter",
+      argTypes: [],
     },
     decrement: {
-      description: 'Subtract one from the counter',
-      argTypes: []
+      description: "Subtract one from the counter",
+      argTypes: [],
     },
     set: {
-      description: 'Set the counter to any number',
+      description: "Set the counter to any number",
       argTypes: [
         {
-          name: 'count',
-          type: 'number'
-        }
-      ]
-    }
-  }
+          name: "count",
+          type: "number",
+        },
+      ],
+    },
+  },
 });
