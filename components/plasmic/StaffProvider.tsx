@@ -73,7 +73,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Add an optimistic row to the data
     //Necessary since we are missing id and created_at fields when adding a new row
     //Until we get the response from the server
-    const dataWithOptimisticRow = (data : StaffRows | null, staff : StaffFromAddForm) => {
+    const addOptimisticRowToDataState = (data : StaffRows | null, staff : StaffFromAddForm) => {
       const opsimisticRow = {
         id: Math.random(),
         name: staff.name,
@@ -87,8 +87,18 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { error } = await supabase.from("staff").insert(staff);
       if (error) throw error;
-      return dataWithOptimisticRow(data, staff);
+      return addOptimisticRowToDataState(data, staff);
     }, [simulateUserSettings, data]);
+
+    const editRowInDataState = (data : StaffRows | null, staff : StaffRow) => {
+      const newData = data?.map((row) => {
+        if (row.id === staff.id) {
+          return staff;
+        }
+        return row;
+      }) || [];
+      return newData.sort((a, b) => a.name > b.name ? 1 : -1);
+    }
 
     const editStaff = useCallback(async (staff : StaffRow) => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
@@ -97,7 +107,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
         .update(staff)
         .eq("id", staff.id);
       if (error) throw error;
-      return [...(data || []), staff];
+      return editRowInDataState(data, staff);
     }, [simulateUserSettings, data]);
 
     const deleteStaff = useCallback(async (id : StaffRow["id"]) => {
@@ -124,13 +134,13 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
         addStaff: async (staff) => {
           mutate(addStaff(staff), {
             populateCache: true,
-            optimisticData: dataWithOptimisticRow(data, staff),
+            optimisticData: addOptimisticRowToDataState(data, staff),
           })
         },
         editStaff: async (staff) => {
           mutate(editStaff(staff), {
             populateCache: true,
-            optimisticData: [...(data || []), staff],
+            optimisticData: editRowInDataState(data, staff),
           })
         }
       }),
