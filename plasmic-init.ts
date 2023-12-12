@@ -73,6 +73,32 @@ PLASMIC.registerComponent(StaffProvider, {
   name: "StaffProvider",
   providesData: true,
   props: {
+    // sort: {
+    //   type: 'code',
+    //   lang: 'javascript'
+    // },
+    // sort: {
+    //   type: "object",
+    //   fields: {
+    //     field: {
+    //       type: "string",
+    //       defaultValue: "id",
+    //     },
+    //     direction: {
+    //       type: "string",
+    //       defaultValue: "asc",
+    //     },
+    //   },
+    // },
+    sort: {
+      type: 'array',
+      defaultValue: [
+        {
+          field: 'id',
+          direction: 'asc'
+        }
+      ]
+    },
     children: "slot",
     loading: {
       type: "slot",
@@ -81,7 +107,7 @@ PLASMIC.registerComponent(StaffProvider, {
         value: "Loading...",
       },
     },
-    forceLoading: 'boolean',
+    forceLoading: "boolean",
     validating: {
       type: "slot",
       defaultValue: {
@@ -89,7 +115,7 @@ PLASMIC.registerComponent(StaffProvider, {
         value: "Validating...",
       },
     },
-    forceValidating: 'boolean',
+    forceValidating: "boolean",
     currentlyActiveError: {
       type: "slot",
       defaultValue: {
@@ -97,7 +123,7 @@ PLASMIC.registerComponent(StaffProvider, {
         value: "Error not yet resolved",
       },
     },
-    forceCurrentlyActiveError: 'boolean',
+    forceCurrentlyActiveError: "boolean",
     latestError: {
       type: "slot",
       defaultValue: [
@@ -105,7 +131,7 @@ PLASMIC.registerComponent(StaffProvider, {
         { type: "button", value: "Clear error" },
       ],
     },
-    forceLatestError: 'boolean',
+    forceLatestError: "boolean",
     noData: {
       type: "slot",
       defaultValue: {
@@ -113,8 +139,8 @@ PLASMIC.registerComponent(StaffProvider, {
         value: "No data",
       },
     },
-    forceNoData: 'boolean',
-    generateRandomErrors: 'boolean',
+    forceNoData: "boolean",
+    generateRandomErrors: "boolean",
   },
   refActions: {
     refetchData: {

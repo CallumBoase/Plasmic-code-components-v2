@@ -22,11 +22,6 @@ interface StaffActions {
   editStaff(staff: StaffRow): void;
 }
 
-type SortObj = {
-  field: string;
-  direction: "asc" | "desc";
-};
-
 interface StaffProviderProps {
   children: React.ReactNode;
   loading: React.ReactNode;
@@ -40,29 +35,13 @@ interface StaffProviderProps {
   forceLoading: boolean;
   forceValidating: boolean;
   generateRandomErrors: boolean;
-  sort: SortObj[] | null;
-}
-
-function dynamicSort(sortConfig: SortObj[]) {
-  return (a: any, b: any) => {
-    for (let i = 0; i < sortConfig.length; i++) {
-      const field = sortConfig[i].field;
-      const direction = sortConfig[i].direction;
-
-      if (a[field] < b[field]) {
-        return direction === "asc" ? -1 : 1;
-      } else if (a[field] > b[field]) {
-        return direction === "asc" ? 1 : -1;
-      }
-    }
-    return 0;
-  };
+  sortFunction: (a: StaffRow, b: StaffRow) => number;
 }
 
 //Define the staff provider component
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
-    const { generateRandomErrors, sort } = _props;
+    const { generateRandomErrors } = _props;
 
     //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
     //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
@@ -73,16 +52,15 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
-      const { data, error } = await supabase.from("staff").select("*");
-      // .order("name", { ascending: true });
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*")
+        .order("name", { ascending: true });
       if (error) {
         throw error;
       }
-      if (sort) {
-        data.sort(dynamicSort(sort));
-      }
       return data;
-    }, [simulateUserSettings, sort]);
+    }, [simulateUserSettings]);
 
     //Fetch data using SWR
     const {
@@ -109,21 +87,19 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     }, [error]);
 
     //Define functions to add, edit and delete staff
-    const addOptimisticRowToDataState = useCallback(
-      (data: StaffRows | null, staff: StaffFromAddForm) => {
-        const opsimisticRow = {
-          id: Math.random(),
-          name: staff.name,
-          created_at: new Date().toISOString(),
-        };
-        const newData = [...(data || []), opsimisticRow];
-        if (sort) {
-          newData.sort(dynamicSort(sort));
-        }
-        return newData;
-      },
-      [sort]
-    );
+    const addOptimisticRowToDataState = (
+      data: StaffRows | null,
+      staff: StaffFromAddForm
+    ) => {
+      const opsimisticRow = {
+        id: Math.random(),
+        name: staff.name,
+        created_at: new Date().toISOString(),
+      };
+      return [...(data || []), opsimisticRow].sort((a, b) =>
+        a.name > b.name ? 1 : -1
+      );
+    };
 
     const addStaff = useCallback(
       async (staff: StaffFromAddForm) => {
@@ -134,41 +110,19 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
         if (error) throw error;
         return addOptimisticRowToDataState(data, staff);
       },
-      [
-        simulateUserSettings,
-        data,
-        generateRandomErrors,
-        addOptimisticRowToDataState,
-      ]
+      [simulateUserSettings, data, generateRandomErrors]
     );
 
-    // const editRowInDataState = (data: StaffRows | null, staff: StaffRow) => {
-    //   const newData =
-    //     data?.map((row) => {
-    //       if (row.id === staff.id) {
-    //         return staff;
-    //       }
-    //       return row;
-    //     }) || [];
-    //   return newData.sort((a, b) => (a.name > b.name ? 1 : -1));
-    // };
-
-    const editRowInDataState = useCallback(
-      (data: StaffRows | null, staff: StaffRow) => {
-        const newData =
-          data?.map((row) => {
-            if (row.id === staff.id) {
-              return staff;
-            }
-            return row;
-          }) || [];
-        if (sort) {
-          newData.sort(dynamicSort(sort));
-        }
-        return newData;
-      },
-      [sort]
-    );
+    const editRowInDataState = (data: StaffRows | null, staff: StaffRow) => {
+      const newData =
+        data?.map((row) => {
+          if (row.id === staff.id) {
+            return staff;
+          }
+          return row;
+        }) || [];
+      return newData.sort((a, b) => (a.name > b.name ? 1 : -1));
+    };
 
     const editStaff = useCallback(
       async (staff: StaffRow) => {
@@ -182,7 +136,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
         if (error) throw error;
         return editRowInDataState(data, staff);
       },
-      [simulateUserSettings, data, generateRandomErrors, editRowInDataState]
+      [simulateUserSettings, data, generateRandomErrors]
     );
 
     const deleteRowFromDataState = (
