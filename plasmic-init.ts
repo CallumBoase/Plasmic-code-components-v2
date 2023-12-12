@@ -114,6 +114,7 @@ PLASMIC.registerComponent(StaffProvider, {
       },
     },
     forceNoData: 'boolean',
+    generateRandomErrors: 'boolean',
   },
   refActions: {
     refetchData: {
