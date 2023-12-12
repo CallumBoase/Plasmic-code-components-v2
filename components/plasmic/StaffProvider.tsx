@@ -14,7 +14,6 @@ import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 
 //Declare types
-
 type StaffRow = Database["public"]["Tables"]["staff"]["Row"];
 type StaffFromAddForm = Pick<StaffRow, "name">
 type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
@@ -110,11 +109,15 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       return editRowInDataState(data, staff);
     }, [simulateUserSettings, data]);
 
+    const deleteRowFromDataState = (data : StaffRows | null, id : StaffRow["id"]) => {
+      return data?.filter((staff) => staff.id !== id) || [];
+    }
+
     const deleteStaff = useCallback(async (id : StaffRow["id"]) => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { error } = await supabase.from("staff").delete().eq("id", id);
       if (error) throw error;
-      return data?.filter((staff) => staff.id !== id) || [];
+      return  deleteRowFromDataState(data, id);
     }, [simulateUserSettings, data]);
 
     //Define element actions which can be called outside this component in Plasmic Studio
@@ -128,7 +131,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
         deleteStaff: async (id) => {
           await mutate(deleteStaff(id), {
             populateCache: true,
-            optimisticData: data?.filter((staff) => staff.id !== id),
+            optimisticData: deleteRowFromDataState(data, id),
           })
         },
         addStaff: async (staff) => {
