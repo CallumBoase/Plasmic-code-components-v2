@@ -9,8 +9,6 @@ import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
-import build from "next/dist/build";
-import { get } from "http";
 
 //Declare types
 type StaffRow = Database["public"]["Tables"]["staff"]["Row"];
@@ -24,11 +22,6 @@ interface StaffActions {
   addStaff(staff: StaffFromAddForm): void;
   editStaff(staff: StaffRow): void;
 }
-
-type SortObj = {
-  field: string;
-  direction: "asc" | "desc";
-};
 
 interface StaffProviderProps {
   children: React.ReactNode;
@@ -62,7 +55,6 @@ const getSortFunc : GetSortFunc = (fieldName, direction) => {
     }
   }
 }
-
 
 //Define the staff provider component
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
