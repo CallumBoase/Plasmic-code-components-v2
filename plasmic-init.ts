@@ -73,31 +73,19 @@ PLASMIC.registerComponent(StaffProvider, {
   name: "StaffProvider",
   providesData: true,
   props: {
-    // sort: {
-    //   type: 'code',
-    //   lang: 'javascript'
-    // },
-    // sort: {
-    //   type: "object",
-    //   fields: {
-    //     field: {
-    //       type: "string",
-    //       defaultValue: "id",
-    //     },
-    //     direction: {
-    //       type: "string",
-    //       defaultValue: "asc",
-    //     },
-    //   },
-    // },
-    sort: {
-      type: 'array',
-      defaultValue: [
-        {
-          field: 'id',
-          direction: 'asc'
-        }
-      ]
+    initialSortField1: 'string',
+    initialSortField1Direction: {
+      type: 'choice',
+      options: ['asc', 'desc']
+    },
+    initialSortField2: {
+      type: 'string',
+      advanced: true,
+    },
+    initialSortField2Direction: {
+      type: 'choice',
+      options: ['asc', 'desc'],
+      advanced: true,
     },
     children: "slot",
     loading: {
@@ -143,6 +131,15 @@ PLASMIC.registerComponent(StaffProvider, {
     generateRandomErrors: "boolean",
   },
   refActions: {
+    sortData: {
+      description: "sort staff data",
+      argTypes: [
+        { name: "sortField1", type: "string" },
+        { name: "sortField1Direction", type: "string" },
+        { name: "sortField2", type: "string" },
+        { name: "sortField2Direction", type: "string" },
+      ],
+    },
     refetchData: {
       description: "refetch staff from the database",
       argTypes: [],

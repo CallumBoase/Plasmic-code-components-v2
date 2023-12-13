@@ -9,6 +9,8 @@ import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
+import build from "next/dist/build";
+import { get } from "http";
 
 //Declare types
 type StaffRow = Database["public"]["Tables"]["staff"]["Row"];
@@ -16,6 +18,7 @@ type StaffFromAddForm = Pick<StaffRow, "name">;
 type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
 
 interface StaffActions {
+  sortData(sortField1: string, sortField1Direction: "asc" | "desc", sortField2: string, sortField2Direction: "asc" | "desc"): Promise<void>;
   refetchData(): Promise<void>;
   deleteStaff(id: StaffRow["id"]): void;
   addStaff(staff: StaffFromAddForm): void;
@@ -40,29 +43,35 @@ interface StaffProviderProps {
   forceLoading: boolean;
   forceValidating: boolean;
   generateRandomErrors: boolean;
-  sort: SortObj[] | null;
+  initialSortField: string;
+  initialSortDirection: "asc" | "desc";
 }
 
-function dynamicSort(sortConfig: SortObj[]) {
-  return (a: any, b: any) => {
-    for (let i = 0; i < sortConfig.length; i++) {
-      const field = sortConfig[i].field;
-      const direction = sortConfig[i].direction;
+type SortDirection = 'asc' | 'desc';
+type SortFuncType = (a: any, b: any) => number;
+type GetSortFunc = (fieldName: string, direction: SortDirection) => SortFuncType;
 
-      if (a[field] < b[field]) {
-        return direction === "asc" ? -1 : 1;
-      } else if (a[field] > b[field]) {
-        return direction === "asc" ? 1 : -1;
-      }
+const getSortFunc : GetSortFunc = (fieldName, direction) => {
+  console.log(fieldName)
+  console.log(direction)
+  return function(a, b) {
+    if (direction === 'asc') {
+      return a[fieldName] > b[fieldName] ? 1 : -1;
+    } else {
+      return a[fieldName] < b[fieldName] ? 1 : -1;
     }
-    return 0;
-  };
+  }
 }
+
 
 //Define the staff provider component
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
-    const { generateRandomErrors, sort } = _props;
+    const {
+      generateRandomErrors,
+      initialSortField: initialSortField,
+      initialSortDirection: initialSortDirection,
+    } = _props;
 
     //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
     //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
@@ -70,19 +79,29 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     const dataEnv = useDataEnv();
     const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
 
+    //Setup state
+    const [data, setData] = useState<StaffRows>(null);
+    const [latestError, setLatestError] = useState<Error | null>(null);
+    const [sortField, setSortField] = useState<string>(initialSortField);
+    const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
+
+    //Define a getter function for sorting based on the current sort field and direction
+    const getSort = useCallback(() => {
+      return getSortFunc(sortField, sortDirection);
+    }, [sortField, sortDirection])
+
     //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { data, error } = await supabase.from("staff").select("*");
-      // .order("name", { ascending: true });
       if (error) {
         throw error;
       }
-      if (sort) {
-        data.sort(dynamicSort(sort));
+      if(data.length) {
+        data.sort(getSort());
       }
       return data;
-    }, [simulateUserSettings, sort]);
+    }, [simulateUserSettings, getSort]);
 
     //Fetch data using SWR
     const {
@@ -92,16 +111,14 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       isValidating,
     } = useSWR("/staff", fetchData);
 
-    //Store the fetched data in state
-    const [data, setData] = useState<StaffRows>(null);
-    const [latestError, setLatestError] = useState<Error | null>(null);
-
+    //When data changes, set data
     useEffect(() => {
       if (fetchedData) {
         setData(fetchedData);
       }
     }, [fetchedData]);
 
+    //When error changes, set latest error
     useEffect(() => {
       if (error) {
         setLatestError(error);
@@ -117,12 +134,10 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
           created_at: new Date().toISOString(),
         };
         const newData = [...(data || []), opsimisticRow];
-        if (sort) {
-          newData.sort(dynamicSort(sort));
-        }
+        if(newData.length) newData.sort(getSort());
         return newData;
       },
-      [sort]
+      [getSort]
     );
 
     const addStaff = useCallback(
@@ -142,17 +157,6 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       ]
     );
 
-    // const editRowInDataState = (data: StaffRows | null, staff: StaffRow) => {
-    //   const newData =
-    //     data?.map((row) => {
-    //       if (row.id === staff.id) {
-    //         return staff;
-    //       }
-    //       return row;
-    //     }) || [];
-    //   return newData.sort((a, b) => (a.name > b.name ? 1 : -1));
-    // };
-
     const editRowInDataState = useCallback(
       (data: StaffRows | null, staff: StaffRow) => {
         const newData =
@@ -162,12 +166,10 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
             }
             return row;
           }) || [];
-        if (sort) {
-          newData.sort(dynamicSort(sort));
-        }
+        if(newData.length) newData.sort(getSort());
         return newData;
       },
-      [sort]
+      [getSort]
     );
 
     const editStaff = useCallback(
@@ -207,6 +209,13 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Define element actions which can be called outside this component in Plasmic Studio
     //Note the opsimistic updates
     useImperativeHandle(ref, () => ({
+      sortData: async(sortField1, sortField1Direction, sortField2, sortField2Direction) => {
+        setSortField(sortField1);
+        setSortDirection(sortField1Direction);
+        const newData = [...(data || [])];
+        newData.sort(getSortFunc(sortField1, sortField1Direction));
+        setData(newData);
+      },
       refetchData: async () => {
         mutate().catch((err) => console.error(err));
       },
@@ -252,6 +261,10 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
               currentlyActiveError: error || _props.forceCurrentlyActiveError,
               latestError: latestError || _props.forceLatestError,
               data: _props.forceNoData ? null : data,
+              sort: {
+                field: sortField,
+                direction: sortDirection,
+              }
             }}
           >
             {_props.children}
