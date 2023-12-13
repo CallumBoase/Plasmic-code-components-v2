@@ -16,7 +16,12 @@ type StaffFromAddForm = Pick<StaffRow, "name">;
 type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
 
 interface StaffActions {
-  sortData(sortField1: string, sortField1Direction: "asc" | "desc", sortField2: string, sortField2Direction: "asc" | "desc"): Promise<void>;
+  sortData(
+    sortField1: string,
+    sortField1Direction: "asc" | "desc",
+    sortField2: string,
+    sortField2Direction: "asc" | "desc"
+  ): Promise<void>;
   refetchData(): Promise<void>;
   deleteStaff(id: StaffRow["id"]): void;
   addStaff(staff: StaffFromAddForm): void;
@@ -40,21 +45,24 @@ interface StaffProviderProps {
   initialSortDirection: "asc" | "desc";
 }
 
-type SortDirection = 'asc' | 'desc';
+type SortDirection = "asc" | "desc";
 type SortFuncType = (a: any, b: any) => number;
-type GetSortFunc = (fieldName: string, direction: SortDirection) => SortFuncType;
+type GetSortFunc = (
+  fieldName: string,
+  direction: SortDirection
+) => SortFuncType;
 
-const getSortFunc : GetSortFunc = (fieldName, direction) => {
-  console.log(fieldName)
-  console.log(direction)
-  return function(a, b) {
-    if (direction === 'asc') {
+const getSortFunc: GetSortFunc = (fieldName, direction) => {
+  console.log(fieldName);
+  console.log(direction);
+  return function (a, b) {
+    if (direction === "asc") {
       return a[fieldName] > b[fieldName] ? 1 : -1;
     } else {
       return a[fieldName] < b[fieldName] ? 1 : -1;
     }
-  }
-}
+  };
+};
 
 //Define the staff provider component
 export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
@@ -73,14 +81,23 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
 
     //Setup state
     const [data, setData] = useState<StaffRows>(null);
+    const [sortedData, setSortedData] = useState<StaffRows>(null);
     const [latestError, setLatestError] = useState<Error | null>(null);
     const [sortField, setSortField] = useState<string>(initialSortField);
-    const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
+    const [sortDirection, setSortDirection] =
+      useState<SortDirection>(initialSortDirection);
 
-    //Define a getter function for sorting based on the current sort field and direction
-    const getSort = useCallback(() => {
-      return getSortFunc(sortField, sortDirection);
-    }, [sortField, sortDirection])
+    //When data or sorting changes, set sortedData
+    //This works better with opsimistic updates than directly sorting data in query / mutation functions
+    //Because the user may change sort order partway through async query/mutation causes glitches
+    //This takes care of sort automatically whenever data or sort changes, making it smooth & easy
+    useEffect(() => {
+      if (data) {
+        const newData = [...data];
+        newData.sort(getSortFunc(sortField, sortDirection));
+        setSortedData(newData);
+      }
+    }, [data, sortField, sortDirection]);
 
     //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
@@ -89,11 +106,8 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       if (error) {
         throw error;
       }
-      if(data.length) {
-        data.sort(getSort());
-      }
       return data;
-    }, [simulateUserSettings, getSort]);
+    }, [simulateUserSettings]);
 
     //Fetch data using SWR
     const {
@@ -104,6 +118,7 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     } = useSWR("/staff", fetchData);
 
     //When data changes, set data
+    //In turn this will cause change to sortedData
     useEffect(() => {
       if (fetchedData) {
         setData(fetchedData);
@@ -126,10 +141,9 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
           created_at: new Date().toISOString(),
         };
         const newData = [...(data || []), opsimisticRow];
-        if(newData.length) newData.sort(getSort());
         return newData;
       },
-      [getSort]
+      []
     );
 
     const addStaff = useCallback(
@@ -158,10 +172,9 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
             }
             return row;
           }) || [];
-        if(newData.length) newData.sort(getSort());
         return newData;
       },
-      [getSort]
+      []
     );
 
     const editStaff = useCallback(
@@ -201,12 +214,9 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
     //Define element actions which can be called outside this component in Plasmic Studio
     //Note the opsimistic updates
     useImperativeHandle(ref, () => ({
-      sortData: async(sortField1, sortField1Direction, sortField2, sortField2Direction) => {
+      sortData: async (sortField1, sortField1Direction) => {
         setSortField(sortField1);
         setSortDirection(sortField1Direction);
-        const newData = [...(data || [])];
-        newData.sort(getSortFunc(sortField1, sortField1Direction));
-        setData(newData);
       },
       refetchData: async () => {
         mutate().catch((err) => console.error(err));
@@ -234,34 +244,44 @@ export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
       },
     }));
 
-    //Render elements on the page
+    //Render the component
     return (
       <>
+        {/*Loading state - validating before we initially have data*/}
         {((isValidating && !fetchedData) || _props.forceLoading) &&
           _props.loading}
+
+        {/*Validating state - any time we are running mutate() to revalidate cache*/}
         {(isValidating || _props.forceValidating) && _props.validating}
+
+        {/*No data state*/}
         {(!data || data.length === 0 || _props.forceNoData) && _props.noData}
+
+        {/*Error state - error is currently there according to SWR*/}
         {(error || _props.forceCurrentlyActiveError) &&
           _props.currentlyActiveError}
+
+        {/*Error state - error that we persist until user cancels it with element actions*/}
         {(latestError || _props.forceLatestError) && _props.latestError}
-        {data && (
-          <DataProvider
-            name="staff"
-            data={{
-              isLoading: (isValidating && !fetchedData) || _props.forceLoading,
-              isValidating: isValidating || _props.forceValidating,
-              currentlyActiveError: error || _props.forceCurrentlyActiveError,
-              latestError: latestError || _props.forceLatestError,
-              data: _props.forceNoData ? null : data,
-              sort: {
-                field: sortField,
-                direction: sortDirection,
-              }
-            }}
-          >
-            {_props.children}
-          </DataProvider>
-        )}
+
+        {/*Render the data provider always*/}
+        <DataProvider
+          name="staff"
+          data={{
+            isLoading: (isValidating && !fetchedData) || _props.forceLoading,
+            isValidating: isValidating || _props.forceValidating,
+            currentlyActiveError: error || _props.forceCurrentlyActiveError,
+            latestError: latestError || _props.forceLatestError,
+            data: _props.forceNoData ? null : sortedData,
+            sort: {
+              field: sortField,
+              direction: sortDirection,
+            },
+          }}
+        >
+          {/*Render children with data provider - when we have data*/}
+          {data && _props.children}
+        </DataProvider>
       </>
     );
   }
