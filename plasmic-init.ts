@@ -77,6 +77,7 @@ PLASMIC.registerComponent(SupabaseProvider, {
       type: 'string',
       defaultValue: 'SupabaseProvider',
     },
+    tableName: 'string',
     initialSortField: "string",
     initialSortDirection: {
       type: "choice",

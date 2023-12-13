@@ -11,9 +11,9 @@ import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 
 //Declare types
-type Row = Object;
-type RowFromAddForm = Object;
-type Rows = Row[] | null;
+type StaffRow = Database["public"]["Tables"]["staff"]["Row"];
+type StaffFromAddForm = Pick<StaffRow, "name">;
+type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
 
 interface Actions {
   sortRows(
@@ -21,14 +21,13 @@ interface Actions {
     sortDirection: "asc" | "desc",
   ): Promise<void>;
   refetchRows(): Promise<void>;
-  deleteRow(id: any): void;
-  addRow(rowFromAddForm: any): void;
-  editRow(row: any): void;
+  deleteRow(id: StaffRow["id"]): void;
+  addRow(staff: StaffFromAddForm): void;
+  editRow(staff: StaffRow): void;
 }
 
 interface SupabaseProviderProps {
   queryName: string;
-  tableName: string;
   children: React.ReactNode;
   loading: React.ReactNode;
   validating: React.ReactNode;
@@ -76,12 +75,11 @@ const getSortFunc: GetSortFunc = (fieldName, direction) => {
   };
 };
 
-//Define the Supabase provider component
+//Define the staff provider component
 export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
   function SupabaseProvider(_props, ref) {
     const {
       queryName,
-      tableName,
       generateRandomErrors,
       initialSortField: initialSortField,
       initialSortDirection: initialSortDirection,
@@ -94,8 +92,8 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
 
     //Setup state
-    const [data, setData] = useState<Rows>(null);
-    const [sortedData, setSortedData] = useState<Rows>(null);
+    const [data, setData] = useState<StaffRows>(null);
+    const [sortedData, setSortedData] = useState<StaffRows>(null);
     const [latestError, setLatestError] = useState<Error | null>(null);
     const [sortField, setSortField] = useState<string>(initialSortField);
     const [sortDirection, setSortDirection] =
@@ -116,12 +114,12 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
-      const { data, error } = await supabase.from(tableName).select("*");
+      const { data, error } = await supabase.from("staff").select("*");
       if (error) {
         throw error;
       }
       return data;
-    }, [simulateUserSettings, tableName]);
+    }, [simulateUserSettings]);
 
     //Fetch data using SWR
     const {
@@ -146,12 +144,12 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       }
     }, [error]);
 
-    //Define functions to add, edit and delete row
+    //Define functions to add, edit and delete staff
     const addOptimisticRowToDataState = useCallback(
-      (data: Rows | null, row: RowFromAddForm) => {
+      (data: StaffRows | null, staff: StaffFromAddForm) => {
         const opsimisticRow = {
           id: Math.random(),
-          name: row.name,
+          name: staff.name,
           created_at: new Date().toISOString(),
         };
         const newData = [...(data || []), opsimisticRow];
@@ -161,31 +159,30 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     );
 
     const addRow = useCallback(
-      async (row: RowFromAddForm) => {
+      async (staff: StaffFromAddForm) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on addRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.from(tableName).insert(row);
+        const { error } = await supabase.from("staff").insert(staff);
         if (error) throw error;
-        return addOptimisticRowToDataState(data, row);
+        return addOptimisticRowToDataState(data, staff);
       },
       [
         simulateUserSettings,
         data,
         generateRandomErrors,
         addOptimisticRowToDataState,
-        tableName
       ]
     );
 
     const editRowInDataState = useCallback(
-      (data: Rows, row: Row) => {
+      (data: StaffRows | null, staff: StaffRow) => {
         const newData =
-          data?.map((existingRow) => {
-            if (row.id === existingRow.id) {
-              return row;
+          data?.map((row) => {
+            if (row.id === staff.id) {
+              return staff;
             }
-            return existingRow;
+            return row;
           }) || [];
         return newData;
       },
@@ -193,37 +190,37 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     );
 
     const editRow = useCallback(
-      async (row: Row) => {
+      async (staff: StaffRow) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on editRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase
-          .from(tableName)
-          .update(row)
-          .eq("id", row.id);
+          .from("staff")
+          .update(staff)
+          .eq("id", staff.id);
         if (error) throw error;
-        return editRowInDataState(data, row);
+        return editRowInDataState(data, staff);
       },
-      [simulateUserSettings, data, generateRandomErrors, editRowInDataState, tableName]
+      [simulateUserSettings, data, generateRandomErrors, editRowInDataState]
     );
 
     const deleteRowFromDataState = (
-      data: Rows | null,
-      id: number | string
+      data: StaffRows | null,
+      id: StaffRow["id"]
     ) => {
-      return data?.filter((row) => row.id !== id) || [];
+      return data?.filter((staff) => staff.id !== id) || [];
     };
 
     const deleteRow = useCallback(
-      async (id: number | string) => {
+      async (id: StaffRow["id"]) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on deleteRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.from(tableName).delete().eq("id", id);
+        const { error } = await supabase.from("staff").delete().eq("id", id);
         if (error) throw error;
         return deleteRowFromDataState(data, id);
       },
-      [simulateUserSettings, data, generateRandomErrors, tableName]
+      [simulateUserSettings, data, generateRandomErrors]
     );
 
     //Define element actions which can be called outside this component in Plasmic Studio
@@ -242,16 +239,16 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           optimisticData: deleteRowFromDataState(data, id),
         }).catch((err) => console.error(err));
       },
-      addRow: async (row) => {
-        mutate(addRow(row), {
+      addRow: async (staff) => {
+        mutate(addRow(staff), {
           populateCache: true,
-          optimisticData: addOptimisticRowToDataState(data, row),
+          optimisticData: addOptimisticRowToDataState(data, staff),
         }).catch((err) => console.error(err));
       },
-      editRow: async (row) => {
-        mutate(editRow(row), {
+      editRow: async (staff) => {
+        mutate(editRow(staff), {
           populateCache: true,
-          optimisticData: editRowInDataState(data, row),
+          optimisticData: editRowInDataState(data, staff),
         }).catch((err) => console.error(err));
       },
       clearError: () => {
