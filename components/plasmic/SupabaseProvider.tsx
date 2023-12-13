@@ -9,17 +9,21 @@ import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
+import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
 
 //Declare types
-type Row = Object;
-type RowFromAddForm = Object;
+type Row = {
+  [key: string]: any;
+};
+type RowFromAddForm = {
+  [key: string]: any;
+};
 type Rows = Row[] | null;
 
+type FetchData = () => Promise<Rows>;
+
 interface Actions {
-  sortRows(
-    sortField: string,
-    sortDirection: "asc" | "desc",
-  ): Promise<void>;
+  sortRows(sortField: string, sortDirection: "asc" | "desc"): Promise<void>;
   refetchRows(): Promise<void>;
   deleteRow(id: any): void;
   addRow(rowFromAddForm: any): void;
@@ -29,12 +33,12 @@ interface Actions {
 type PlaceholderForOptimisticAdd = {
   fieldName: string;
   value: any;
-}
+};
 
 interface SupabaseProviderProps {
   queryName: string;
   tableName: string;
-  columns: 'string';
+  columns: "string";
   uniqueIdentifierField: string;
   placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
   children: React.ReactNode;
@@ -53,40 +57,11 @@ interface SupabaseProviderProps {
   initialSortDirection: "asc" | "desc";
 }
 
-type SortDirection = "asc" | "desc";
-type SortFuncType = (a: any, b: any) => number;
-type GetSortFunc = (
-  fieldName: string,
-  direction: SortDirection
-) => SortFuncType;
 
-const getSortFunc: GetSortFunc = (fieldName, direction) => {
-  return function (a, b) {
-
-    let valA = a[fieldName];
-    let valB = b[fieldName];
-
-    //if field vals are string, convert to lowercase
-    if (typeof valA === "string") {
-      valA = valA.toLowerCase();
-    }
-
-    if (typeof valB === "string") {
-      valB = valB.toLowerCase();
-    }
-
-    //Sort
-    if (direction === "asc") {
-      return valA > valB ? 1 : -1;
-    } else {
-      return  valA < valB ? 1 : -1;
-    }
-  };
-};
 
 //Define the Supabase provider component
 export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
-  function SupabaseProvider(_props, ref) {
+  function SupabaseProvider(props, ref) {
     const {
       queryName,
       tableName,
@@ -96,7 +71,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       generateRandomErrors,
       initialSortField: initialSortField,
       initialSortDirection: initialSortDirection,
-    } = _props;
+    } = props;
 
     //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
     //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
@@ -117,7 +92,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Because the user may change sort order partway through async query/mutation causes glitches
     //This takes care of sort automatically whenever data or sort changes, making it smooth & easy
     useEffect(() => {
-      console.log('data or sort changed')
+      console.log("data or sort changed");
       console.log(data);
       if (data) {
         const newData = [...data];
@@ -127,7 +102,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     }, [data, sortField, sortDirection]);
 
     //Function that can be called to fetch data
-    const fetchData = useCallback(async () => {
+    const fetchData : FetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
       const { data, error } = await supabase.from(tableName).select(columns);
       if (error) {
@@ -164,9 +139,9 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       (data: Rows | null, row: RowFromAddForm) => {
         //Convert array of placeholders in format of {fieldName, value} to object {fieldName: value}
         const extraData = placeholdersForOptimisticAdd?.reduce((acc, curr) => {
-          return {...acc, [curr.fieldName]: curr.value}
-        }, {})
-        const opsimisticRow = {...row, ...extraData}
+          return { ...acc, [curr.fieldName]: curr.value };
+        }, {});
+        const opsimisticRow = { ...row, ...extraData };
         const newData = [...(data || []), opsimisticRow];
         return newData;
       },
@@ -187,7 +162,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         data,
         generateRandomErrors,
         addRowOptimistically,
-        tableName
+        tableName,
       ]
     );
 
@@ -195,14 +170,16 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       (data: Rows, row: Row) => {
         const newData =
           data?.map((existingRow) => {
-            if (row.id === existingRow.id) {
+            if (
+              row[uniqueIdentifierField] === existingRow[uniqueIdentifierField]
+            ) {
               return row;
             }
             return existingRow;
           }) || [];
         return newData;
       },
-      []
+      [uniqueIdentifierField]
     );
 
     const editRow = useCallback(
@@ -213,30 +190,52 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         const { error } = await supabase
           .from(tableName)
           .update(row)
-          .eq("id", row.id);
+          .eq(uniqueIdentifierField, row[uniqueIdentifierField]);
         if (error) throw error;
         return editRowOptimistically(data, row);
       },
-      [simulateUserSettings, data, generateRandomErrors, editRowOptimistically, tableName]
+      [
+        simulateUserSettings,
+        data,
+        generateRandomErrors,
+        editRowOptimistically,
+        tableName,
+        uniqueIdentifierField,
+      ]
     );
 
-    const deleteRowOptimistically = (
-      data: Rows | null,
-      id: number | string
-    ) => {
-      return data?.filter((row) => row.id !== id) || [];
-    };
+    const deleteRowOptimistically = useCallback(
+      (data: Rows, uniqueIdentifierVal: number | string) => {
+        const newData = data?.filter(
+          (row) => row[uniqueIdentifierField] !== uniqueIdentifierVal
+        );
+        if(!newData) return null;
+        return newData;
+      },
+      [uniqueIdentifierField]
+    );
 
     const deleteRow = useCallback(
-      async (id: number | string) => {
+      async (uniqueIdentifierVal: number | string) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on deleteRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.from(tableName).delete().eq("id", id);
+        const { error } = await supabase
+          .from(tableName)
+          .delete()
+          .eq(uniqueIdentifierField, uniqueIdentifierVal);
         if (error) throw error;
-        return deleteRowOptimistically(data, id);
+        return deleteRowOptimistically(data, uniqueIdentifierVal);
+        //use-swr will now revalidate data so no need to refetch single one here
       },
-      [simulateUserSettings, data, generateRandomErrors, tableName]
+      [
+        simulateUserSettings,
+        data,
+        generateRandomErrors,
+        tableName,
+        uniqueIdentifierField,
+        deleteRowOptimistically,
+      ]
     );
 
     //Define element actions which can be called outside this component in Plasmic Studio
@@ -249,10 +248,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       refetchRows: async () => {
         mutate().catch((err) => console.error(err));
       },
-      deleteRow: async (id) => {
-        mutate(deleteRow(id), {
+      deleteRow: async (uniqueIdentifierVal) => {
+        mutate(deleteRow(uniqueIdentifierVal), {
           populateCache: true,
-          optimisticData: deleteRowOptimistically(data, id),
+          optimisticData: deleteRowOptimistically(data, uniqueIdentifierVal),
         }).catch((err) => console.error(err));
       },
       addRow: async (row) => {
@@ -276,31 +275,31 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     return (
       <>
         {/*Loading state - validating before we initially have data*/}
-        {((isValidating && !fetchedData) || _props.forceLoading) &&
-          _props.loading}
+        {((isValidating && !fetchedData) || props.forceLoading) &&
+          props.loading}
 
         {/*Validating state - any time we are running mutate() to revalidate cache*/}
-        {(isValidating || _props.forceValidating) && _props.validating}
+        {(isValidating || props.forceValidating) && props.validating}
 
         {/*No data state*/}
-        {(!data || data.length === 0 || _props.forceNoData) && _props.noData}
+        {(!data || data.length === 0 || props.forceNoData) && props.noData}
 
         {/*Error state - error is currently there according to SWR*/}
-        {(error || _props.forceCurrentlyActiveError) &&
-          _props.currentlyActiveError}
+        {(error || props.forceCurrentlyActiveError) &&
+          props.currentlyActiveError}
 
         {/*Error state - error that we persist until user cancels it with element actions*/}
-        {(latestError || _props.forceLatestError) && _props.latestError}
+        {(latestError || props.forceLatestError) && props.latestError}
 
         {/*Render the data provider always*/}
         <DataProvider
-          name={queryName || 'SupabaseProvider'}
+          name={queryName || "SupabaseProvider"}
           data={{
-            isLoading: (isValidating && !fetchedData) || _props.forceLoading,
-            isValidating: isValidating || _props.forceValidating,
-            currentlyActiveError: error || _props.forceCurrentlyActiveError,
-            latestError: latestError || _props.forceLatestError,
-            data: _props.forceNoData ? null : sortedData,
+            isLoading: (isValidating && !fetchedData) || props.forceLoading,
+            isValidating: isValidating || props.forceValidating,
+            currentlyActiveError: error || props.forceCurrentlyActiveError,
+            latestError: latestError || props.forceLatestError,
+            data: props.forceNoData ? null : sortedData,
             sort: {
               field: sortField,
               direction: sortDirection,
@@ -308,7 +307,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           }}
         >
           {/*Render children with data provider - when we have data*/}
-          {data && _props.children}
+          {data && props.children}
         </DataProvider>
       </>
     );
