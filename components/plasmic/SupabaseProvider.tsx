@@ -92,8 +92,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Because the user may change sort order partway through async query/mutation causes glitches
     //This takes care of sort automatically whenever data or sort changes, making it smooth & easy
     useEffect(() => {
-      console.log("data or sort changed");
-      console.log(data);
       if (data) {
         const newData = [...data];
         newData.sort(getSortFunc(sortField, sortDirection));
