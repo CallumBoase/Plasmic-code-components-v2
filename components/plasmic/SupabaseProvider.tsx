@@ -7,9 +7,9 @@ import {
 } from "react";
 import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
-import type { Database } from "@/types/supabase";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
+import { supabaseJsFilterOperators, type SupabaseJsFilterOperator } from '@/types/supabase-js-filter-ops'
 
 //Declare types
 type Row = {
@@ -30,6 +30,12 @@ interface Actions {
   editRow(row: any): void;
 }
 
+type Filter = {
+  fieldName: string;
+  operator: SupabaseJsFilterOperator;
+  value: any;
+}
+
 type PlaceholderForOptimisticAdd = {
   fieldName: string;
   value: any;
@@ -39,6 +45,7 @@ interface SupabaseProviderProps {
   queryName: string;
   tableName: string;
   columns: "string";
+  filters?: Filter[];
   uniqueIdentifierField: string;
   placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
   children: React.ReactNode;
@@ -66,6 +73,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       queryName,
       tableName,
       columns,
+      filters,
       uniqueIdentifierField,
       placeholdersForOptimisticAdd,
       generateRandomErrors,
@@ -101,13 +109,28 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     //Function that can be called to fetch data
     const fetchData : FetchData = useCallback(async () => {
+      //New client
       const supabase = await supabaseBrowserClient(simulateUserSettings);
-      const { data, error } = await supabase.from(tableName).select(columns);
+
+      //Build the query with dynamic filters passed as props to the component
+      //The basic query
+      const supabaseQuery = supabase.from(tableName).select(columns);
+
+      //The dynamic filters if present
+      if(filters && filters.length > 0) {
+        filters.forEach(filter => {
+          if(!supabaseJsFilterOperators.includes(filter.operator)) throw new Error('Invalid filter operator');
+          supabaseQuery[filter.operator](filter.fieldName, filter.value);
+        })
+      }
+      
+      //Execute the query
+      const { data, error } = await supabaseQuery;
       if (error) {
         throw error;
       }
       return data;
-    }, [simulateUserSettings, tableName, columns]);
+    }, [simulateUserSettings, tableName, columns, filters]);
 
     //Fetch data using SWR
     const {

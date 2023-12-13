@@ -6,6 +6,7 @@ import { HelloWorld } from "./components/plasmic/HelloWorld";
 import { TweetsProvider } from "./components/plasmic/TweetsProvider";
 import { Counter } from "./components/plasmic/Counter";
 import { SupabaseProvider } from "./components/plasmic/SupabaseProvider";
+import { supabaseJsFilterOperators } from "./types/supabase-js-filter-ops";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -81,6 +82,18 @@ PLASMIC.registerComponent(SupabaseProvider, {
     columns: {
       type: 'string',
       defaultValue: '*'
+    },
+    filters: {
+      type: 'array',
+      itemType: {
+        type: 'object',
+        fields: {
+          fieldName: 'string',
+          operator: 'string',
+          value: 'string',
+        },
+      },
+      description: 'Filters to execute during the query. Acceptable values are eq, neq, gt, lt, gte, lte.'
     },
     initialSortField: "string",
     initialSortDirection: {
