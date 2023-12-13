@@ -78,11 +78,35 @@ PLASMIC.registerComponent(SupabaseProvider, {
       defaultValue: 'SupabaseProvider',
     },
     tableName: 'string',
+    columns: {
+      type: 'string',
+      defaultValue: '*'
+    },
     initialSortField: "string",
     initialSortDirection: {
       type: "choice",
       options: ["asc", "desc"],
     },
+    uniqueIdentifierField: 'string',
+    placeholdersForOptimisticAdd: {
+      type: 'array',
+      itemType: {
+        type: 'object',
+        fields: {
+          fieldName: 'string',
+          value: 'string',
+        },
+      },
+      description: 'Extra values to create your optimistic row, that are not in the add row form'
+    },
+    // placeholdersForOptimisticAdd: {
+    //   type: 'object',
+    //   fields: {
+    //     fieldName: 'string',
+    //     value: 'string',
+    //   },
+    //   description: 'Extra values to create your optimistic row, that are not in the add row form. Acceptable values for "value" are "random" or "timestamp".'
+    // },
     children: "slot",
     loading: {
       type: "slot",

@@ -26,9 +26,17 @@ interface Actions {
   editRow(row: any): void;
 }
 
+type PlaceholderForOptimisticAdd = {
+  fieldName: string;
+  value: any;
+}
+
 interface SupabaseProviderProps {
   queryName: string;
   tableName: string;
+  columns: 'string';
+  uniqueIdentifierField: string;
+  placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
   children: React.ReactNode;
   loading: React.ReactNode;
   validating: React.ReactNode;
@@ -82,6 +90,9 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     const {
       queryName,
       tableName,
+      columns,
+      uniqueIdentifierField,
+      placeholdersForOptimisticAdd,
       generateRandomErrors,
       initialSortField: initialSortField,
       initialSortDirection: initialSortDirection,
@@ -106,6 +117,8 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Because the user may change sort order partway through async query/mutation causes glitches
     //This takes care of sort automatically whenever data or sort changes, making it smooth & easy
     useEffect(() => {
+      console.log('data or sort changed')
+      console.log(data);
       if (data) {
         const newData = [...data];
         newData.sort(getSortFunc(sortField, sortDirection));
@@ -116,12 +129,12 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Function that can be called to fetch data
     const fetchData = useCallback(async () => {
       const supabase = await supabaseBrowserClient(simulateUserSettings);
-      const { data, error } = await supabase.from(tableName).select("*");
+      const { data, error } = await supabase.from(tableName).select(columns);
       if (error) {
         throw error;
       }
       return data;
-    }, [simulateUserSettings, tableName]);
+    }, [simulateUserSettings, tableName, columns]);
 
     //Fetch data using SWR
     const {
@@ -147,17 +160,17 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     }, [error]);
 
     //Define functions to add, edit and delete row
-    const addOptimisticRowToDataState = useCallback(
+    const addRowOptimistically = useCallback(
       (data: Rows | null, row: RowFromAddForm) => {
-        const opsimisticRow = {
-          id: Math.random(),
-          name: row.name,
-          created_at: new Date().toISOString(),
-        };
+        //Convert array of placeholders in format of {fieldName, value} to object {fieldName: value}
+        const extraData = placeholdersForOptimisticAdd?.reduce((acc, curr) => {
+          return {...acc, [curr.fieldName]: curr.value}
+        }, {})
+        const opsimisticRow = {...row, ...extraData}
         const newData = [...(data || []), opsimisticRow];
         return newData;
       },
-      []
+      [placeholdersForOptimisticAdd]
     );
 
     const addRow = useCallback(
@@ -167,18 +180,18 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase.from(tableName).insert(row);
         if (error) throw error;
-        return addOptimisticRowToDataState(data, row);
+        return addRowOptimistically(data, row);
       },
       [
         simulateUserSettings,
         data,
         generateRandomErrors,
-        addOptimisticRowToDataState,
+        addRowOptimistically,
         tableName
       ]
     );
 
-    const editRowInDataState = useCallback(
+    const editRowOptimistically = useCallback(
       (data: Rows, row: Row) => {
         const newData =
           data?.map((existingRow) => {
@@ -202,12 +215,12 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           .update(row)
           .eq("id", row.id);
         if (error) throw error;
-        return editRowInDataState(data, row);
+        return editRowOptimistically(data, row);
       },
-      [simulateUserSettings, data, generateRandomErrors, editRowInDataState, tableName]
+      [simulateUserSettings, data, generateRandomErrors, editRowOptimistically, tableName]
     );
 
-    const deleteRowFromDataState = (
+    const deleteRowOptimistically = (
       data: Rows | null,
       id: number | string
     ) => {
@@ -221,7 +234,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase.from(tableName).delete().eq("id", id);
         if (error) throw error;
-        return deleteRowFromDataState(data, id);
+        return deleteRowOptimistically(data, id);
       },
       [simulateUserSettings, data, generateRandomErrors, tableName]
     );
@@ -239,19 +252,19 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       deleteRow: async (id) => {
         mutate(deleteRow(id), {
           populateCache: true,
-          optimisticData: deleteRowFromDataState(data, id),
+          optimisticData: deleteRowOptimistically(data, id),
         }).catch((err) => console.error(err));
       },
       addRow: async (row) => {
         mutate(addRow(row), {
           populateCache: true,
-          optimisticData: addOptimisticRowToDataState(data, row),
+          optimisticData: addRowOptimistically(data, row),
         }).catch((err) => console.error(err));
       },
       editRow: async (row) => {
         mutate(editRow(row), {
           populateCache: true,
-          optimisticData: editRowInDataState(data, row),
+          optimisticData: editRowOptimistically(data, row),
         }).catch((err) => console.error(err));
       },
       clearError: () => {
