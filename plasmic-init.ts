@@ -5,7 +5,7 @@ import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
 import { HelloWorld } from "./components/plasmic/HelloWorld";
 import { TweetsProvider } from "./components/plasmic/TweetsProvider";
 import { Counter } from "./components/plasmic/Counter";
-import { StaffProvider } from "./components/plasmic/StaffProvider";
+import { SupabaseProvider } from "./components/plasmic/StaffProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -69,7 +69,7 @@ PLASMIC.registerComponent(TweetsProvider, {
   },
 });
 
-PLASMIC.registerComponent(StaffProvider, {
+PLASMIC.registerComponent(SupabaseProvider, {
   name: "StaffProvider",
   providesData: true,
   props: {

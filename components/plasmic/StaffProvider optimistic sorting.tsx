@@ -15,18 +15,18 @@ type StaffRow = Database["public"]["Tables"]["staff"]["Row"];
 type StaffFromAddForm = Pick<StaffRow, "name">;
 type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
 
-interface Actions {
-  sortRows(
+interface StaffActions {
+  sortData(
     sortField: string,
     sortDirection: "asc" | "desc",
   ): Promise<void>;
-  refetchRows(): Promise<void>;
-  deleteRow(id: StaffRow["id"]): void;
-  addRow(staff: StaffFromAddForm): void;
-  editRow(staff: StaffRow): void;
+  refetchData(): Promise<void>;
+  deleteStaff(id: StaffRow["id"]): void;
+  addStaff(staff: StaffFromAddForm): void;
+  editStaff(staff: StaffRow): void;
 }
 
-interface SupabaseProviderProps {
+interface StaffProviderProps {
   children: React.ReactNode;
   loading: React.ReactNode;
   validating: React.ReactNode;
@@ -75,7 +75,7 @@ const getSortFunc: GetSortFunc = (fieldName, direction) => {
 };
 
 //Define the staff provider component
-export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
+export const StaffProvider = forwardRef<StaffActions, StaffProviderProps>(
   function StaffProvider(_props, ref) {
     const {
       generateRandomErrors,
@@ -224,11 +224,11 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Define element actions which can be called outside this component in Plasmic Studio
     //Note the opsimistic updates
     useImperativeHandle(ref, () => ({
-      sortRows: async (sortField1, sortField1Direction) => {
+      sortData: async (sortField1, sortField1Direction) => {
         setSortField(sortField1);
         setSortDirection(sortField1Direction);
       },
-      refetchRows: async () => {
+      refetchData: async () => {
         mutate().catch((err) => console.error(err));
       },
       deleteStaff: async (id) => {
@@ -237,13 +237,13 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           optimisticData: deleteRowFromDataState(data, id),
         }).catch((err) => console.error(err));
       },
-      addRow: async (staff) => {
+      addStaff: async (staff) => {
         mutate(addStaff(staff), {
           populateCache: true,
           optimisticData: addOptimisticRowToDataState(data, staff),
         }).catch((err) => console.error(err));
       },
-      editRow: async (staff) => {
+      editStaff: async (staff) => {
         mutate(editStaff(staff), {
           populateCache: true,
           optimisticData: editRowInDataState(data, staff),
