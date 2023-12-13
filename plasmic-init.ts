@@ -73,19 +73,10 @@ PLASMIC.registerComponent(StaffProvider, {
   name: "StaffProvider",
   providesData: true,
   props: {
-    initialSortField1: 'string',
-    initialSortField1Direction: {
-      type: 'choice',
-      options: ['asc', 'desc']
-    },
-    initialSortField2: {
-      type: 'string',
-      advanced: true,
-    },
-    initialSortField2Direction: {
-      type: 'choice',
-      options: ['asc', 'desc'],
-      advanced: true,
+    initialSortField: "string",
+    initialSortDirection: {
+      type: "choice",
+      options: ["asc", "desc"],
     },
     children: "slot",
     loading: {
