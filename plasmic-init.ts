@@ -125,10 +125,8 @@ PLASMIC.registerComponent(StaffProvider, {
     sortData: {
       description: "sort staff data",
       argTypes: [
-        { name: "sortField1", type: "string" },
-        { name: "sortField1Direction", type: "string" },
-        { name: "sortField2", type: "string" },
-        { name: "sortField2Direction", type: "string" },
+        {name: 'sortField', type: 'string'},
+        {name: 'sortDirection', type: 'string'},
       ],
     },
     refetchData: {
