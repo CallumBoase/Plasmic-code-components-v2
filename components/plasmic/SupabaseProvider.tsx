@@ -27,6 +27,7 @@ interface Actions {
 }
 
 interface SupabaseProviderProps {
+  queryName: string;
   children: React.ReactNode;
   loading: React.ReactNode;
   validating: React.ReactNode;
@@ -76,8 +77,9 @@ const getSortFunc: GetSortFunc = (fieldName, direction) => {
 
 //Define the staff provider component
 export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
-  function StaffProvider(_props, ref) {
+  function SupabaseProvider(_props, ref) {
     const {
+      queryName,
       generateRandomErrors,
       initialSortField: initialSortField,
       initialSortDirection: initialSortDirection,
@@ -125,7 +127,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       error,
       mutate,
       isValidating,
-    } = useSWR("/staff", fetchData);
+    } = useSWR(`/${queryName}`, fetchData);
 
     //When data changes, set data
     //In turn this will cause change to sortedData
@@ -156,10 +158,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       []
     );
 
-    const addStaff = useCallback(
+    const addRow = useCallback(
       async (staff: StaffFromAddForm) => {
         if (generateRandomErrors && Math.random() > 0.5)
-          throw new Error("Randomly generated error on addStaff");
+          throw new Error("Randomly generated error on addRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase.from("staff").insert(staff);
         if (error) throw error;
@@ -187,10 +189,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       []
     );
 
-    const editStaff = useCallback(
+    const editRow = useCallback(
       async (staff: StaffRow) => {
         if (generateRandomErrors && Math.random() > 0.5)
-          throw new Error("Randomly generated error on editStaff");
+          throw new Error("Randomly generated error on editRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase
           .from("staff")
@@ -209,10 +211,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       return data?.filter((staff) => staff.id !== id) || [];
     };
 
-    const deleteStaff = useCallback(
+    const deleteRow = useCallback(
       async (id: StaffRow["id"]) => {
         if (generateRandomErrors && Math.random() > 0.5)
-          throw new Error("Randomly generated error on deleteStaff");
+          throw new Error("Randomly generated error on deleteRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase.from("staff").delete().eq("id", id);
         if (error) throw error;
@@ -224,27 +226,27 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Define element actions which can be called outside this component in Plasmic Studio
     //Note the opsimistic updates
     useImperativeHandle(ref, () => ({
-      sortRows: async (sortField1, sortField1Direction) => {
-        setSortField(sortField1);
-        setSortDirection(sortField1Direction);
+      sortRows: async (sortField, sortDirection) => {
+        setSortField(sortField);
+        setSortDirection(sortDirection);
       },
       refetchRows: async () => {
         mutate().catch((err) => console.error(err));
       },
-      deleteStaff: async (id) => {
-        mutate(deleteStaff(id), {
+      deleteRow: async (id) => {
+        mutate(deleteRow(id), {
           populateCache: true,
           optimisticData: deleteRowFromDataState(data, id),
         }).catch((err) => console.error(err));
       },
       addRow: async (staff) => {
-        mutate(addStaff(staff), {
+        mutate(addRow(staff), {
           populateCache: true,
           optimisticData: addOptimisticRowToDataState(data, staff),
         }).catch((err) => console.error(err));
       },
       editRow: async (staff) => {
-        mutate(editStaff(staff), {
+        mutate(editRow(staff), {
           populateCache: true,
           optimisticData: editRowInDataState(data, staff),
         }).catch((err) => console.error(err));
@@ -276,7 +278,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
         {/*Render the data provider always*/}
         <DataProvider
-          name="staff"
+          name={queryName || 'SupabaseProvider'}
           data={{
             isLoading: (isValidating && !fetchedData) || _props.forceLoading,
             isValidating: isValidating || _props.forceValidating,

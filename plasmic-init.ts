@@ -5,7 +5,7 @@ import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
 import { HelloWorld } from "./components/plasmic/HelloWorld";
 import { TweetsProvider } from "./components/plasmic/TweetsProvider";
 import { Counter } from "./components/plasmic/Counter";
-import { SupabaseProvider } from "./components/plasmic/StaffProvider";
+import { SupabaseProvider } from "./components/plasmic/SupabaseProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -70,9 +70,13 @@ PLASMIC.registerComponent(TweetsProvider, {
 });
 
 PLASMIC.registerComponent(SupabaseProvider, {
-  name: "StaffProvider",
+  name: "SupabaseProvider",
   providesData: true,
   props: {
+    queryName: {
+      type: 'string',
+      defaultValue: 'SupabaseProvider',
+    },
     initialSortField: "string",
     initialSortDirection: {
       type: "choice",
@@ -122,28 +126,28 @@ PLASMIC.registerComponent(SupabaseProvider, {
     generateRandomErrors: "boolean",
   },
   refActions: {
-    sortData: {
-      description: "sort staff data",
+    sortRows: {
+      description: "sort rows",
       argTypes: [
         {name: 'sortField', type: 'string'},
         {name: 'sortDirection', type: 'string'},
       ],
     },
     refetchData: {
-      description: "refetch staff from the database",
+      description: "refetch rows from the database",
       argTypes: [],
     },
-    deleteStaff: {
-      description: "delete a staff member",
-      argTypes: [{ name: "Staff ID", type: "number" }],
+    deleteRow: {
+      description: "delete a row by ID",
+      argTypes: [{ name: "ID", type: "string" }],
     },
-    addStaff: {
-      description: "add a staff member",
-      argTypes: [{ name: "staff", type: "object" }],
+    addRow: {
+      description: "add a row",
+      argTypes: [{ name: "row", type: "object" }],
     },
-    editStaff: {
-      description: "edit a staff member",
-      argTypes: [{ name: "staff", type: "object" }],
+    editRow: {
+      description: "edit row",
+      argTypes: [{ name: "row", type: "object" }],
     },
     clearError: {
       description: "clear the latest error message",
