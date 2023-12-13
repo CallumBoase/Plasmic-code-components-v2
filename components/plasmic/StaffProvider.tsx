@@ -17,10 +17,8 @@ type StaffRows = Database["public"]["Tables"]["staff"]["Row"][] | null;
 
 interface StaffActions {
   sortData(
-    sortField1: string,
-    sortField1Direction: "asc" | "desc",
-    sortField2: string,
-    sortField2Direction: "asc" | "desc"
+    sortField: string,
+    sortDirection: "asc" | "desc",
   ): Promise<void>;
   refetchData(): Promise<void>;
   deleteStaff(id: StaffRow["id"]): void;
@@ -53,13 +51,25 @@ type GetSortFunc = (
 ) => SortFuncType;
 
 const getSortFunc: GetSortFunc = (fieldName, direction) => {
-  console.log(fieldName);
-  console.log(direction);
   return function (a, b) {
+
+    let valA = a[fieldName];
+    let valB = b[fieldName];
+
+    //if field vals are string, convert to lowercase
+    if (typeof valA === "string") {
+      valA = valA.toLowerCase();
+    }
+
+    if (typeof valB === "string") {
+      valB = valB.toLowerCase();
+    }
+
+    //Sort
     if (direction === "asc") {
-      return a[fieldName] > b[fieldName] ? 1 : -1;
+      return valA > valB ? 1 : -1;
     } else {
-      return a[fieldName] < b[fieldName] ? 1 : -1;
+      return  valA < valB ? 1 : -1;
     }
   };
 };
