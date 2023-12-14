@@ -1,8 +1,8 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
-import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
-import { SupabaseProvider } from "./components/plasmic/SupabaseProvider";
+import { SupabaseUser } from "./components/SupabaseUserProvider";
+import { SupabaseProvider } from "./components/SupabaseProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
