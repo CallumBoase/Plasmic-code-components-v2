@@ -7,6 +7,8 @@ import {
 import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getErrMsg from "@/utils/getErrMsg";
+import { useRouter } from "next/router";
+import { redirect } from "next/dist/server/api-utils";
 
 //Declare types
 type RowFromAddForm = {
@@ -20,6 +22,7 @@ interface Actions {
 
 interface SupabaseAddRowProviderProps {
   tableName: string;
+  redirectOnSuccess?: string;
   children: React.ReactNode;
   forceLatestError: boolean;
   generateRandomErrors: boolean;
@@ -32,10 +35,13 @@ export const SupabaseAddRowProvider = forwardRef<
 >(function SupabaseAddRowProvider(props, ref) {
   const {
     tableName,
+    redirectOnSuccess,
     generateRandomErrors,
     forceLatestError,
     children,
   } = props;
+
+  const router = useRouter();
 
   //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
   //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
@@ -45,7 +51,6 @@ export const SupabaseAddRowProvider = forwardRef<
 
   //Setup state
   const [latestError, setLatestError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
 
   //Fetch data using SWR
 
@@ -67,10 +72,9 @@ export const SupabaseAddRowProvider = forwardRef<
     addRow: async (row) => {
       try {
         await addRow(row);
-        setSuccess(true);
+        if(redirectOnSuccess) router.push(redirectOnSuccess);
         return;
       } catch (err) {
-        setSuccess(false);
         setLatestError(getErrMsg(err));
       }
     },
@@ -85,7 +89,6 @@ export const SupabaseAddRowProvider = forwardRef<
       name="SupabaseAddRowProvider"
       data={{
         latestError: latestError || forceLatestError,
-        success: success,
       }}
     >
       {children}

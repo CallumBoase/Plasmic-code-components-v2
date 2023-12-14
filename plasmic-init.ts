@@ -64,6 +64,7 @@ PLASMIC.registerComponent(SupabaseAddRowProvider, {
   props: {
     children: 'slot',
     tableName: 'string',
+    redirectOnSuccess: 'string',
     forceLatestError: 'boolean',
     generateRandomErrors: 'boolean'
   },
