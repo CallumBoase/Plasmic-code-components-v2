@@ -9,7 +9,14 @@ import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
-import { supabaseJsFilterOperators, type SupabaseJsFilterOperator } from '@/types/supabase-js-filter-ops'
+import {
+  supabaseJsFilterOperators_oneArg,
+  supabaseJsFilterOperators_twoArg,
+  supabaseJsFilterOperators_threeArg,
+  type SupabaseJsFilterOperator_oneArg,
+  type SupabaseJsFilterOperator_twoArg,
+  type SupabaseJsFilterOperator_threeArg,
+} from "@/types/supabase-js-filter-ops";
 
 //Declare types
 type Row = {
@@ -31,10 +38,11 @@ interface Actions {
 }
 
 type Filter = {
-  fieldName: string;
-  operator: SupabaseJsFilterOperator;
+  fieldName: any;
+  operator: any;
   value: any;
-}
+  value2: any; //2nd value needed for some filters
+};
 
 type PlaceholderForOptimisticAdd = {
   fieldName: string;
@@ -63,8 +71,6 @@ interface SupabaseProviderProps {
   initialSortField: string;
   initialSortDirection: "asc" | "desc";
 }
-
-
 
 //Define the Supabase provider component
 export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
@@ -108,7 +114,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     }, [data, sortField, sortDirection]);
 
     //Function that can be called to fetch data
-    const fetchData : FetchData = useCallback(async () => {
+    const fetchData: FetchData = useCallback(async () => {
       //New client
       const supabase = await supabaseBrowserClient(simulateUserSettings);
 
@@ -117,13 +123,36 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       const supabaseQuery = supabase.from(tableName).select(columns);
 
       //The dynamic filters if present
-      if(filters && filters.length > 0) {
-        filters.forEach(filter => {
-          if(!supabaseJsFilterOperators.includes(filter.operator)) throw new Error('Invalid filter operator');
-          supabaseQuery[filter.operator](filter.fieldName, filter.value);
-        })
+      if (filters && filters.length > 0) {
+        filters.forEach((filter) => {
+          if (supabaseJsFilterOperators_oneArg.includes(filter.operator)) {
+            const operator = filter.operator as SupabaseJsFilterOperator_oneArg;
+            supabaseQuery[operator](filter.fieldName);
+          } else if (
+            supabaseJsFilterOperators_twoArg.includes(filter.operator)
+          ) {
+            const operator = filter.operator as SupabaseJsFilterOperator_twoArg;
+            //Typescript ignore next line because it doesn't like the dynamic operator and no benefit for enforcing safety
+            // @ts-ignore-next-line
+            supabaseQuery[operator](filter.fieldName, filter.value);
+          } else if (
+            supabaseJsFilterOperators_threeArg.includes(filter.operator)
+          ) {
+            const operator =
+              filter.operator as SupabaseJsFilterOperator_threeArg;
+            //Typescript ignore next line because it doesn't like the dynamic operator and no benefit for enforcing safety
+            // @ts-ignore-next-line
+            supabaseQuery[operator](
+              filter.fieldName,
+              filter.value,
+              filter.value2
+            );
+          } else {
+            throw new Error("Invalid filter operator");
+          }
+        });
       }
-      
+
       //Execute the query
       const { data, error } = await supabaseQuery;
       if (error) {
@@ -230,7 +259,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         const newData = data?.filter(
           (row) => row[uniqueIdentifierField] !== uniqueIdentifierVal
         );
-        if(!newData) return null;
+        if (!newData) return null;
         return newData;
       },
       [uniqueIdentifierField]
@@ -294,7 +323,20 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     //Render the component
     return (
-      <>
+      <DataProvider
+        name={queryName || "SupabaseProvider"}
+        data={{
+          isLoading: (isValidating && !fetchedData) || props.forceLoading,
+          isValidating: isValidating || props.forceValidating,
+          currentlyActiveError: error || props.forceCurrentlyActiveError,
+          latestError: latestError || props.forceLatestError,
+          data: props.forceNoData ? null : sortedData,
+          sort: {
+            field: sortField,
+            direction: sortDirection,
+          },
+        }}
+      >
         {/*Loading state - validating before we initially have data*/}
         {((isValidating && !fetchedData) || props.forceLoading) &&
           props.loading}
@@ -312,25 +354,9 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         {/*Error state - error that we persist until user cancels it with element actions*/}
         {(latestError || props.forceLatestError) && props.latestError}
 
-        {/*Render the data provider always*/}
-        <DataProvider
-          name={queryName || "SupabaseProvider"}
-          data={{
-            isLoading: (isValidating && !fetchedData) || props.forceLoading,
-            isValidating: isValidating || props.forceValidating,
-            currentlyActiveError: error || props.forceCurrentlyActiveError,
-            latestError: latestError || props.forceLatestError,
-            data: props.forceNoData ? null : sortedData,
-            sort: {
-              field: sortField,
-              direction: sortDirection,
-            },
-          }}
-        >
-          {/*Render children with data provider - when we have data*/}
-          {data && props.children}
-        </DataProvider>
-      </>
+        {/*Render children with data provider - when we have data*/}
+        {data && props.children}
+      </DataProvider>
     );
   }
 );
