@@ -17,6 +17,7 @@ interface DataProviderData {
     email: string | null;
     password: string | null;
   };
+  error: any;
 }
 
 interface SupabaseUserComponentProps {
@@ -28,6 +29,7 @@ interface SupabaseUserComponentProps {
 
 export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   const [session, setSession] = useState<User | null>(null);
+  const [error, setError] = useState<any>(null);
 
   const [simulateUserSettings, setSimulateUserSettings] = useState({
     simulateLoggedInUser: props.simulateLoggedInUser,
@@ -71,12 +73,18 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   }, [simulateUserSettings]);
 
   const fetchSession = useCallback(async () => {
-    const data = await getSession();
-    setSession({
-      email: data.session?.user.email || null,
-      role: data.session?.user.role || null,
-      user_metadata: data.session?.user.user_metadata || null,
-    });
+    try {
+      const data = await getSession();
+      setSession({
+        email: data.session?.user.email || null,
+        role: data.session?.user.role || null,
+        user_metadata: data.session?.user.user_metadata || null,
+      });
+      setError(null);
+    } catch (e) {
+      setError(e);
+      return;
+    }
   }, [getSession]);
 
   //Initially fetch the session
@@ -87,19 +95,31 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   const actions = useMemo(
     () => ({
       login: async (email: string, password: string) => {
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        fetchSession();
+        try {
+          const supabase = await supabaseBrowserClient(simulateUserSettings);
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw error;
+          fetchSession();
+          setError(null);
+        } catch (e) {
+          setError(e);
+          return;
+        }
       },
       logout: async () => {
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        fetchSession();
+        try {
+          const supabase = await supabaseBrowserClient(simulateUserSettings);
+          const { error } = await supabase.auth.signOut();
+          if (error) throw error;
+          fetchSession();
+          setError(null);
+        } catch (e) {
+          setError(e);
+          return;
+        }
       },
     }),
     [fetchSession, simulateUserSettings]
@@ -112,6 +132,7 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
       email: props.email,
       password: props.password,
     },
+    error,
   };
 
   return (
