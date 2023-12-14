@@ -54,6 +54,8 @@ export async function middleware(request: NextRequest) {
   const { data } = await supabase.auth.getSession();
 
   const isLoggedIn = data?.session?.user;
+  console.log('isLoggedIn')
+  console.log(isLoggedIn?.id)
 
   if (request.nextUrl.pathname === "/login") {
     //Login page
