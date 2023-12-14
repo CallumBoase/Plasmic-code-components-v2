@@ -3,6 +3,7 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 //Custom components
 import { SupabaseUser } from "./components/SupabaseUserProvider";
 import { SupabaseProvider } from "./components/SupabaseProvider";
+import { SupabaseAddRowProvider } from "./components/SupabaseAddRowProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -55,6 +56,29 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
       parameters: [],
     }
   },
+});
+
+PLASMIC.registerComponent(SupabaseAddRowProvider, {
+  name: 'SupabaseAddRowProvider',
+  providesData: true,
+  props: {
+    children: 'slot',
+    table: 'string',
+    forceLatestError: 'boolean',
+    generateRandomErrors: 'boolean'
+  },
+  refActions: {
+    addRow: {
+      description: 'add a row',
+      argTypes: [
+        { name: 'row', type: 'object' }
+      ]
+    },
+    clearError: {
+      description: 'clear the latest error message',
+      argTypes: []
+    }
+  }
 });
 
 PLASMIC.registerComponent(SupabaseProvider, {
@@ -175,3 +199,5 @@ PLASMIC.registerComponent(SupabaseProvider, {
     },
   },
 });
+
+

@@ -18,16 +18,15 @@ interface Actions {
   clearError(): void;
 }
 
-interface SupabaseProviderProps {
+interface SupabaseAddRowProviderProps {
   tableName: string;
-  // latestError: React.ReactNode;
   children: React.ReactNode;
   forceLatestError: boolean;
   generateRandomErrors: boolean;
 }
 
 //Define the Supabase provider component
-export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
+export const SupabaseAddRowProvider = forwardRef<Actions, SupabaseAddRowProviderProps>(
   function SupabaseProvider(props, ref) {
     const {
       tableName,
@@ -80,7 +79,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Render the component
     return (
       <DataProvider
-        name="SupabaseAddRow"
+        name="SupabaseAddRowProvider"
         data={{
           latestError: latestError || props.forceLatestError,
         }}
