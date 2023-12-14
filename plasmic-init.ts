@@ -2,9 +2,6 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
 import { SupabaseUser } from "./components/plasmic/SupabaseUserProvider";
-import { HelloWorld } from "./components/plasmic/HelloWorld";
-import { TweetsProvider } from "./components/plasmic/TweetsProvider";
-import { Counter } from "./components/plasmic/Counter";
 import { SupabaseProvider } from "./components/plasmic/SupabaseProvider";
 
 export const PLASMIC = initPlasmicLoader({
@@ -41,32 +38,6 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
     password: "string",
   },
   providesData: true,
-});
-
-// PLASMIC.registerComponent(SupabaseUser, {
-//   name: 'SupabaseUser',
-//   props: {
-//     children: 'slot'
-//   },
-//   providesData: true
-// });
-
-PLASMIC.registerComponent(HelloWorld, {
-  name: "HelloWorld",
-  props: {
-    name: {
-      type: "string",
-      defaultValue: "Something",
-    },
-  },
-});
-
-PLASMIC.registerComponent(TweetsProvider, {
-  name: "TweetsProvider",
-  providesData: true,
-  props: {
-    children: "slot",
-  },
 });
 
 PLASMIC.registerComponent(SupabaseProvider, {
@@ -112,14 +83,6 @@ PLASMIC.registerComponent(SupabaseProvider, {
       },
       description: 'Extra values to create your optimistic row, that are not in the add row form'
     },
-    // placeholdersForOptimisticAdd: {
-    //   type: 'object',
-    //   fields: {
-    //     fieldName: 'string',
-    //     value: 'string',
-    //   },
-    //   description: 'Extra values to create your optimistic row, that are not in the add row form. Acceptable values for "value" are "random" or "timestamp".'
-    // },
     children: "slot",
     loading: {
       type: "slot",
@@ -190,30 +153,6 @@ PLASMIC.registerComponent(SupabaseProvider, {
     clearError: {
       description: "clear the latest error message",
       argTypes: [],
-    },
-  },
-});
-
-PLASMIC.registerComponent(Counter, {
-  name: "Counter",
-  props: {},
-  refActions: {
-    increment: {
-      description: "Add one to the counter",
-      argTypes: [],
-    },
-    decrement: {
-      description: "Subtract one from the counter",
-      argTypes: [],
-    },
-    set: {
-      description: "Set the counter to any number",
-      argTypes: [
-        {
-          name: "count",
-          type: "number",
-        },
-      ],
     },
   },
 });
