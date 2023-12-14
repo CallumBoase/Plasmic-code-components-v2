@@ -1,17 +1,15 @@
 import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 
 //Custom components
-import { UserProvider } from "./components/plasmic/UserProvider";
-import { HelloWorld } from './components/plasmic/HelloWorld'
-import { TweetsProvider } from './components/plasmic/TweetsProvider'
-import { Counter } from "./components/plasmic/Counter";
-import { StaffProvider } from "./components/plasmic/StaffProvider";
+import { SupabaseUser } from "./components/SupabaseUserProvider";
+import { SupabaseProvider } from "./components/SupabaseProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
     {
       id: "j5kwR4gbf2MEZDV6eJXqij",
-      token: "Pl18l30xNglhCwI6AasBpyByr1md0I50BDEAeCA17435huuiOp5MIXP7aMPzKuQALoImfqDgfsjnypoUI1w",
+      token:
+        "Pl18l30xNglhCwI6AasBpyByr1md0I50BDEAeCA17435huuiOp5MIXP7aMPzKuQALoImfqDgfsjnypoUI1w",
     },
   ],
 
@@ -31,78 +29,149 @@ export const PLASMIC = initPlasmicLoader({
 
 // PLASMIC.registerComponent(...);
 
-PLASMIC.registerGlobalContext(UserProvider, {
-  name: 'UserProvider',
-  props: {},
-  providesData: true
+//Works but makes building hard - only populated after login in PREVIEW or localhost not in builder
+PLASMIC.registerGlobalContext(SupabaseUser, {
+  name: "SupabaseUserGlobalContext",
+  props: {
+    simulateLoggedInUser: "boolean",
+    email: "string",
+    password: "string",
+  },
+  providesData: true,
+  globalActions: {
+    login: {
+      parameters: [
+        {
+          name: "email",
+          type: "string",
+        },
+        {
+          name: "password",
+          type: "string",
+        },
+      ],
+    },
+    logout: {
+      parameters: [],
+    }
+  },
 });
 
-PLASMIC.registerComponent(HelloWorld, {
-  name: 'HelloWorld',
-  props: {
-    name: {
-      type: 'string',
-      defaultValue: 'Something',
-    }
-  }
-})
-
-PLASMIC.registerComponent(TweetsProvider, {
-  name: 'TweetsProvider',
+PLASMIC.registerComponent(SupabaseProvider, {
+  name: "SupabaseProvider",
   providesData: true,
   props: {
-    children: 'slot'
-  }
-})
-
-PLASMIC.registerComponent(StaffProvider, {
-  name: 'StaffProvider',
-  providesData: true,
-  props: {
-    children: 'slot'
+    queryName: {
+      type: "string",
+      defaultValue: "SupabaseProvider",
+    },
+    tableName: "string",
+    columns: {
+      type: "string",
+      defaultValue: "*",
+    },
+    filters: {
+      type: "array",
+      itemType: {
+        type: "object",
+        fields: {
+          fieldName: "string",
+          operator: "string",
+          value: "string",
+          value2: "string",
+        },
+      },
+      description:
+        "Filters to execute during the query. Acceptable values are eq, neq, gt, lt, gte, lte.",
+    },
+    initialSortField: "string",
+    initialSortDirection: {
+      type: "choice",
+      options: ["asc", "desc"],
+    },
+    uniqueIdentifierField: "string",
+    placeholdersForOptimisticAdd: {
+      type: "array",
+      itemType: {
+        type: "object",
+        fields: {
+          fieldName: "string",
+          value: "string",
+        },
+      },
+      description:
+        "Extra values to create your optimistic row, that are not in the add row form",
+    },
+    children: "slot",
+    loading: {
+      type: "slot",
+      defaultValue: {
+        type: "text",
+        value: "Loading...",
+      },
+    },
+    forceLoading: "boolean",
+    validating: {
+      type: "slot",
+      defaultValue: {
+        type: "text",
+        value: "Validating...",
+      },
+    },
+    forceValidating: "boolean",
+    currentlyActiveError: {
+      type: "slot",
+      defaultValue: {
+        type: "text",
+        value: "Error not yet resolved",
+      },
+    },
+    forceCurrentlyActiveError: "boolean",
+    latestError: {
+      type: "slot",
+      defaultValue: [
+        { type: "text", value: "Error click to clear" },
+        { type: "button", value: "Clear error" },
+      ],
+    },
+    forceLatestError: "boolean",
+    noData: {
+      type: "slot",
+      defaultValue: {
+        type: "text",
+        value: "No data",
+      },
+    },
+    forceNoData: "boolean",
+    generateRandomErrors: "boolean",
   },
   refActions: {
-    deleteStaff: {
-      description: 'delete a staff member',
+    sortRows: {
+      description: "sort rows",
       argTypes: [
-        {name: 'Staff ID', type: 'number'}
-      ]
+        { name: "sortField", type: "string" },
+        { name: "sortDirection", type: "string" },
+      ],
     },
-    addStaff: {
-      description: 'add a staff member',
-      argTypes: [
-        {name: 'staff', type: 'object'}
-      ]
+    refetchData: {
+      description: "refetch rows from the database",
+      argTypes: [],
     },
-    editStaff: {
-      description: 'edit a staff member',
-      argTypes: [
-        {name: 'staff', type: 'object'}
-      ]
-    }
-  }
-})
-
-PLASMIC.registerComponent(Counter, {
-  name: 'Counter',
-  props: {},
-  refActions: {
-    increment: {
-      description: 'Add one to the counter',
-      argTypes: []
+    deleteRow: {
+      description: "delete a row by ID",
+      argTypes: [{ name: "ID", type: "string" }],
     },
-    decrement: {
-      description: 'Subtract one from the counter',
-      argTypes: []
+    addRow: {
+      description: "add a row",
+      argTypes: [{ name: "row", type: "object" }],
     },
-    set: {
-      description: 'Set the counter to any number',
-      argTypes: [
-        {
-          name: 'count',
-          type: 'number'
-        }
-      ]
-    }
-  }
+    editRow: {
+      description: "edit row",
+      argTypes: [{ name: "row", type: "object" }],
+    },
+    clearError: {
+      description: "clear the latest error message",
+      argTypes: [],
+    },
+  },
 });
