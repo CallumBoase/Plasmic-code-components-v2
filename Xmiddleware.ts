@@ -1,3 +1,5 @@
+//MIDDLEWARE CURRENTLY DISABLED DUE TO CAUSING ISSUES AND NOT WORKING FOR AUTH REDIRECT / PROTECTING ROUTES
+
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 

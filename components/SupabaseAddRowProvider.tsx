@@ -45,6 +45,7 @@ export const SupabaseAddRowProvider = forwardRef<
 
   //Setup state
   const [latestError, setLatestError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<boolean>(false);
 
   //Fetch data using SWR
 
@@ -66,7 +67,10 @@ export const SupabaseAddRowProvider = forwardRef<
     addRow: async (row) => {
       try {
         await addRow(row);
+        setSuccess(true);
+        return;
       } catch (err) {
+        setSuccess(false);
         setLatestError(getErrMsg(err));
       }
     },
@@ -81,6 +85,7 @@ export const SupabaseAddRowProvider = forwardRef<
       name="SupabaseAddRowProvider"
       data={{
         latestError: latestError || forceLatestError,
+        success: success,
       }}
     >
       {children}
