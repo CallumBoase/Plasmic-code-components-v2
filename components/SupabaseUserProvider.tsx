@@ -1,4 +1,4 @@
-import { useRouter } from "next/router";
+import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { GlobalActionsProvider } from "@plasmicapp/host";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -116,7 +116,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess, simulateLoggedIn
           if (error) throw error;
           await getSessionAndSaveToState();
           setError(null);
-          if(redirectOnLoginSuccess) router.push(redirectOnLoginSuccess);
+          if(redirectOnLoginSuccess && router) router.push(redirectOnLoginSuccess);
           return;
         } catch (e) {
           setError(getErrMsg(e))

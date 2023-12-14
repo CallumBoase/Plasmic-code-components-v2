@@ -7,8 +7,7 @@ import {
 import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getErrMsg from "@/utils/getErrMsg";
-import { useRouter } from "next/router";
-import { redirect } from "next/dist/server/api-utils";
+import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
 
 //Declare types
 type RowFromAddForm = {
@@ -72,7 +71,7 @@ export const SupabaseAddRowProvider = forwardRef<
     addRow: async (row) => {
       try {
         await addRow(row);
-        if(redirectOnSuccess) router.push(redirectOnSuccess);
+        if(redirectOnSuccess && router) router.push(redirectOnSuccess);
         return;
       } catch (err) {
         setLatestError(getErrMsg(err));
