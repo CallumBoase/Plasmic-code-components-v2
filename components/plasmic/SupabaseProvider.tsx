@@ -9,14 +9,7 @@ import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
-import {
-  supabaseJsFilterOperators_oneArg,
-  supabaseJsFilterOperators_twoArg,
-  supabaseJsFilterOperators_threeArg,
-  type SupabaseJsFilterOperator_oneArg,
-  type SupabaseJsFilterOperator_twoArg,
-  type SupabaseJsFilterOperator_threeArg,
-} from "@/types/supabase-js-filter-ops";
+import buildSupabaseQueryWithDynamicFilters, { type Filter } from "@/utils/buildSupabaseQueryWithDynamicFilters";
 
 //Declare types
 type Row = {
@@ -37,13 +30,6 @@ interface Actions {
   editRow(row: any): void;
 }
 
-type Filter = {
-  fieldName: any;
-  operator: any;
-  value: any;
-  value2: any; //2nd value needed for some filters
-};
-
 type PlaceholderForOptimisticAdd = {
   fieldName: string;
   value: any;
@@ -52,7 +38,7 @@ type PlaceholderForOptimisticAdd = {
 interface SupabaseProviderProps {
   queryName: string;
   tableName: string;
-  columns: "string";
+  columns: string;
   filters?: Filter[];
   uniqueIdentifierField: string;
   placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
@@ -118,40 +104,13 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       //New client
       const supabase = await supabaseBrowserClient(simulateUserSettings);
 
-      //Build the query with dynamic filters passed as props to the component
-      //The basic query
-      const supabaseQuery = supabase.from(tableName).select(columns);
-
-      //The dynamic filters if present
-      if (filters && filters.length > 0) {
-        filters.forEach((filter) => {
-          if (supabaseJsFilterOperators_oneArg.includes(filter.operator)) {
-            const operator = filter.operator as SupabaseJsFilterOperator_oneArg;
-            supabaseQuery[operator](filter.fieldName);
-          } else if (
-            supabaseJsFilterOperators_twoArg.includes(filter.operator)
-          ) {
-            const operator = filter.operator as SupabaseJsFilterOperator_twoArg;
-            //Typescript ignore next line because it doesn't like the dynamic operator and no benefit for enforcing safety
-            // @ts-ignore-next-line
-            supabaseQuery[operator](filter.fieldName, filter.value);
-          } else if (
-            supabaseJsFilterOperators_threeArg.includes(filter.operator)
-          ) {
-            const operator =
-              filter.operator as SupabaseJsFilterOperator_threeArg;
-            //Typescript ignore next line because it doesn't like the dynamic operator and no benefit for enforcing safety
-            // @ts-ignore-next-line
-            supabaseQuery[operator](
-              filter.fieldName,
-              filter.value,
-              filter.value2
-            );
-          } else {
-            throw new Error("Invalid filter operator");
-          }
-        });
-      }
+      //Build the query with dynamic filters that were passed as props to the component
+      const supabaseQuery = buildSupabaseQueryWithDynamicFilters({
+        supabase,
+        tableName,
+        columns,
+        filters,
+      });
 
       //Execute the query
       const { data, error } = await supabaseQuery;
