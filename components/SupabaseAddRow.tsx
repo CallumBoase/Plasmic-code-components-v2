@@ -1,33 +1,27 @@
 import {
   useState,
-  useEffect,
   forwardRef,
   useImperativeHandle,
   useCallback,
 } from "react";
 import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
-import { useSWRConfig } from "swr";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getErrMsg from "@/utils/getErrMsg";
 
 //Declare types
-type Row = {
-  [key: string]: any;
-};
 type RowFromAddForm = {
   [key: string]: any;
 };
-type Rows = Row[] | null;
-
-type FetchData = () => Promise<Rows>;
 
 interface Actions {
   addRow(rowFromAddForm: any): void;
+  clearError(): void;
 }
 
 interface SupabaseProviderProps {
   tableName: string;
-  latestError: React.ReactNode;
+  // latestError: React.ReactNode;
+  children: React.ReactNode;
   forceLatestError: boolean;
   generateRandomErrors: boolean;
 }
@@ -37,7 +31,8 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
   function SupabaseProvider(props, ref) {
     const {
       tableName,
-      generateRandomErrors
+      generateRandomErrors,
+      children
     } = props;
 
     //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
@@ -90,8 +85,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           latestError: latestError || props.forceLatestError,
         }}
       >
-        {/*Error state - error that we persist until user cancels it with element actions*/}
-        {(latestError || props.forceLatestError) && props.latestError}
+        {children}
       </DataProvider>
     );
   }
