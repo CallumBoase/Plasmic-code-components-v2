@@ -182,7 +182,7 @@ alter table "public"."product" add constraint "product_pkey" PRIMARY KEY using i
 
 alter table "public"."project_role" add constraint "project_role_pkey" PRIMARY KEY using index "project_role_pkey";
 
-alter table "public"."artwork_check_history" add constraint "artwork_check_history_action_done_check" CHECK ((action_done = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'N/A'::text, 'Feedback added'::text]))) not valid;
+alter table "public"."artwork_check_history" add constraint "artwork_check_history_action_done_check" CHECK ((action_done = ANY (ARRAY['Pending'::text, 'Accepted'::text, 'Rejected'::text, 'N/A'::text, 'Feedback added'::text]))) not valid;
 
 alter table "public"."artwork_check_history" validate constraint "artwork_check_history_action_done_check";
 
@@ -234,7 +234,7 @@ alter table "public"."copy_item" add constraint "copy_item_product_id_fkey" FORE
 
 alter table "public"."copy_item" validate constraint "copy_item_product_id_fkey";
 
-alter table "public"."copy_requirement" add constraint "copy_requirement_artwork_check_status_check" CHECK ((artwork_check_status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'N/A'::text]))) not valid;
+alter table "public"."copy_requirement" add constraint "copy_requirement_artwork_check_status_check" CHECK ((artwork_check_status = ANY (ARRAY['Pending'::text, 'Accepted'::text, 'Rejected'::text, 'N/A'::text]))) not valid;
 
 alter table "public"."copy_requirement" validate constraint "copy_requirement_artwork_check_status_check";
 
