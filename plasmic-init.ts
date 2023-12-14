@@ -31,13 +31,30 @@ export const PLASMIC = initPlasmicLoader({
 
 //Works but makes building hard - only populated after login in PREVIEW or localhost not in builder
 PLASMIC.registerGlobalContext(SupabaseUser, {
-  name: "SupabaseUser",
+  name: "SupabaseUserGlobalContext",
   props: {
     simulateLoggedInUser: "boolean",
     email: "string",
     password: "string",
   },
   providesData: true,
+  globalActions: {
+    login: {
+      parameters: [
+        {
+          name: "email",
+          type: "string",
+        },
+        {
+          name: "password",
+          type: "string",
+        },
+      ],
+    },
+    logout: {
+      parameters: [],
+    }
+  },
 });
 
 PLASMIC.registerComponent(SupabaseProvider, {
@@ -45,43 +62,45 @@ PLASMIC.registerComponent(SupabaseProvider, {
   providesData: true,
   props: {
     queryName: {
-      type: 'string',
-      defaultValue: 'SupabaseProvider',
+      type: "string",
+      defaultValue: "SupabaseProvider",
     },
-    tableName: 'string',
+    tableName: "string",
     columns: {
-      type: 'string',
-      defaultValue: '*'
+      type: "string",
+      defaultValue: "*",
     },
     filters: {
-      type: 'array',
+      type: "array",
       itemType: {
-        type: 'object',
+        type: "object",
         fields: {
-          fieldName: 'string',
-          operator: 'string',
-          value: 'string',
-          value2: 'string',
+          fieldName: "string",
+          operator: "string",
+          value: "string",
+          value2: "string",
         },
       },
-      description: 'Filters to execute during the query. Acceptable values are eq, neq, gt, lt, gte, lte.'
+      description:
+        "Filters to execute during the query. Acceptable values are eq, neq, gt, lt, gte, lte.",
     },
     initialSortField: "string",
     initialSortDirection: {
       type: "choice",
       options: ["asc", "desc"],
     },
-    uniqueIdentifierField: 'string',
+    uniqueIdentifierField: "string",
     placeholdersForOptimisticAdd: {
-      type: 'array',
+      type: "array",
       itemType: {
-        type: 'object',
+        type: "object",
         fields: {
-          fieldName: 'string',
-          value: 'string',
+          fieldName: "string",
+          value: "string",
         },
       },
-      description: 'Extra values to create your optimistic row, that are not in the add row form'
+      description:
+        "Extra values to create your optimistic row, that are not in the add row form",
     },
     children: "slot",
     loading: {
@@ -130,8 +149,8 @@ PLASMIC.registerComponent(SupabaseProvider, {
     sortRows: {
       description: "sort rows",
       argTypes: [
-        {name: 'sortField', type: 'string'},
-        {name: 'sortDirection', type: 'string'},
+        { name: "sortField", type: "string" },
+        { name: "sortDirection", type: "string" },
       ],
     },
     refetchData: {

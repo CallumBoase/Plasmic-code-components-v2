@@ -1,6 +1,5 @@
 import { DataProvider } from "@plasmicapp/loader-nextjs";
-import { GlobalActionsProvider } from "@plasmicapp/host";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import type { Json } from "@/types/supabase";
 
@@ -11,6 +10,9 @@ type User = {
 };
 
 interface DataProviderData {
+  login(email: string, password: string): Promise<void>;
+  logout(): Promise<void>;
+  fetchSession(): Promise<void>;
   user: User | null;
   simulateUserSettings: {
     simulateLoggedInUser: boolean;
@@ -84,28 +86,27 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
     fetchSession();
   }, [fetchSession]);
 
-  const actions = useMemo(
-    () => ({
-      login: async (email: string, password: string) => {
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        fetchSession();
-      },
-      logout: async () => {
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        fetchSession();
-      },
-    }),
-    [fetchSession, simulateUserSettings]
-  );
+  const login = async (email: string, password: string) => {
+    const supabase = await supabaseBrowserClient(simulateUserSettings);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    fetchSession();
+  };
+
+  const logout = async () => {
+    const supabase = await supabaseBrowserClient(simulateUserSettings);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    fetchSession();
+  };
 
   const dataProviderData: DataProviderData = {
+    login,
+    logout,
+    fetchSession,
     user: session,
     simulateUserSettings: {
       simulateLoggedInUser: props.simulateLoggedInUser,
@@ -115,13 +116,8 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   };
 
   return (
-    <GlobalActionsProvider
-      contextName="SupabaseUserGlobalContext"
-      actions={actions}
-    >
-      <DataProvider name="SupabaseUser" data={dataProviderData}>
-        {props.children}
-      </DataProvider>
-    </GlobalActionsProvider>
+    <DataProvider name="SupabaseUser" data={dataProviderData}>
+      {props.children}
+    </DataProvider>
   );
 };
