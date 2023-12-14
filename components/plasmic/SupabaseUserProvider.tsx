@@ -3,6 +3,7 @@ import { GlobalActionsProvider } from "@plasmicapp/host";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import type { Json } from "@/types/supabase";
+import getErrMsg from "@/utils/getErrMsg";
 
 type User = {
   email: string | null;
@@ -17,7 +18,7 @@ interface DataProviderData {
     email: string | null;
     password: string | null;
   };
-  error: any;
+  error: string | null;
 }
 
 interface SupabaseUserComponentProps {
@@ -29,7 +30,7 @@ interface SupabaseUserComponentProps {
 
 export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   const [session, setSession] = useState<User | null>(null);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [simulateUserSettings, setSimulateUserSettings] = useState({
     simulateLoggedInUser: props.simulateLoggedInUser,
@@ -82,7 +83,7 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
       });
       setError(null);
     } catch (e) {
-      setError(e);
+      setError(getErrMsg(e))
       return;
     }
   }, [getSession]);
@@ -105,7 +106,7 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
           fetchSession();
           setError(null);
         } catch (e) {
-          setError(e);
+          setError(getErrMsg(e))
           return;
         }
       },
@@ -117,7 +118,7 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
           fetchSession();
           setError(null);
         } catch (e) {
-          setError(e);
+          setError(getErrMsg(e))
           return;
         }
       },
