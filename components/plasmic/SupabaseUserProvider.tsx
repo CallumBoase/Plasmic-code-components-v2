@@ -1,21 +1,19 @@
 import { DataProvider } from "@plasmicapp/loader-nextjs";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
-import type { Database } from "@/types/supabase-auth";
+import type { Json } from "@/types/supabase";
 
-interface SupabaseUserData {
+type User = {
   email: string | null;
   role: string | null;
-  user_metadata:
-    | Database["auth"]["Tables"]["users"]["Row"]["raw_user_meta_data"]
-    | null;
-}
+  user_metadata: Json | null;
+};
 
 interface DataProviderData {
   login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
   fetchSession(): Promise<void>;
-  user: SupabaseUserData | null;
+  user: User | null;
   simulateUserSettings: {
     simulateLoggedInUser: boolean;
     email: string | null;
@@ -29,14 +27,6 @@ interface SupabaseUserComponentProps {
   email: string | null;
   password: string | null;
 }
-
-type User = {
-  email: string | null;
-  role: string | null;
-  user_metadata:
-    | Database["auth"]["Tables"]["users"]["Row"]["raw_user_meta_data"]
-    | null;
-};
 
 export const SupabaseUser = (props: SupabaseUserComponentProps) => {
   const [session, setSession] = useState<User | null>(null);
