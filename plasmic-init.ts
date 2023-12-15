@@ -121,6 +121,11 @@ PLASMIC.registerComponent(SupabaseProvider, {
       required: true,
       defaultValue: "id",
     },
+    hideDefaultErrors: {
+      type: 'boolean',
+      advanced: true,
+      description: 'Hide default errors so you can use the $ctx values yourself to show custom error messages'
+    },
     placeholdersForOptimisticAdd: {
       type: "array",
       advanced: true,

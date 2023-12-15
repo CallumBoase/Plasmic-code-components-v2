@@ -44,6 +44,7 @@ interface SupabaseProviderProps {
   columns: string;
   filters?: Filter[];
   uniqueIdentifierField: string;
+  hideDefaultErrors: boolean;
   placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
   children: React.ReactNode;
   loading: React.ReactNode;
@@ -69,6 +70,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       columns,
       filters,
       uniqueIdentifierField,
+      hideDefaultErrors,
       placeholdersForOptimisticAdd,
       children,
       loading,
@@ -175,8 +177,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       if (forceQueryError) {
         setFetcherError('Simulated query error!');
       } else {
-        if(!rawFetcherErr) setFetcherError(null);
-        setFetcherError(getErrMsg(rawFetcherErr))
+        setFetcherError(null);
       }
     }, [forceQueryError]);
 
@@ -353,10 +354,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         {(!data || data.length === 0 || forceNoData) && noData}
 
         {/*Error state - error is currently there according to SWR*/}
-        {fetcherError && <p>Error from fetching records: {fetcherError}</p>}
+        {(fetcherError && !hideDefaultErrors) && <p>Error from fetching records: {fetcherError}</p>}
 
         {/*Error state - error is currently there according to mutation*/}
-        {mutationError && <p>Error from mutation: {mutationError}</p>}
+        {(mutationError && !hideDefaultErrors) && <p>Error from mutation: {mutationError}</p>}
 
         {/*Render children with data provider - when we have data*/}
         {(data || !tableName) && children}
