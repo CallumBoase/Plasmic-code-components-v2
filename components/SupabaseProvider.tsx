@@ -9,7 +9,10 @@ import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
-import buildSupabaseQueryWithDynamicFilters, { type Filter } from "@/utils/buildSupabaseQueryWithDynamicFilters";
+import buildSupabaseQueryWithDynamicFilters, {
+  type Filter,
+} from "@/utils/buildSupabaseQueryWithDynamicFilters";
+import getErrMsg from "@/utils/getErrMsg";
 
 //Declare types
 type Row = {
@@ -41,16 +44,15 @@ interface SupabaseProviderProps {
   columns: string;
   filters?: Filter[];
   uniqueIdentifierField: string;
+  hideDefaultErrors: boolean;
   placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
   children: React.ReactNode;
   loading: React.ReactNode;
   validating: React.ReactNode;
   noData: React.ReactNode;
-  currentlyActiveError: React.ReactNode;
-  latestError: React.ReactNode;
   forceNoData: boolean;
-  forceCurrentlyActiveError: boolean;
-  forceLatestError: boolean;
+  forceQueryError: boolean;
+  forceMutationError: boolean;
   forceLoading: boolean;
   forceValidating: boolean;
   generateRandomErrors: boolean;
@@ -62,15 +64,26 @@ interface SupabaseProviderProps {
 export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
   function SupabaseProvider(props, ref) {
     const {
+      //All avialable props destructured
       queryName,
       tableName,
       columns,
       filters,
       uniqueIdentifierField,
+      hideDefaultErrors,
       placeholdersForOptimisticAdd,
+      children,
+      loading,
+      validating,
+      noData,
+      forceNoData,
+      forceQueryError,
+      forceMutationError,
+      forceLoading,
+      forceValidating,
       generateRandomErrors,
-      initialSortField: initialSortField,
-      initialSortDirection: initialSortDirection,
+      initialSortField,
+      initialSortDirection,
     } = props;
 
     //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
@@ -82,10 +95,15 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Setup state
     const [data, setData] = useState<Rows>(null);
     const [sortedData, setSortedData] = useState<Rows>(null);
-    const [latestError, setLatestError] = useState<Error | null>(null);
     const [sortField, setSortField] = useState<string>(initialSortField);
     const [sortDirection, setSortDirection] =
       useState<SortDirection>(initialSortDirection);
+
+    //string version of the raw error object from SWR
+    const [fetcherError, setFetcherError] = useState<string | null>(null);
+
+    //Error resulting from a mutation as opposed to SWR fetcher
+    const [mutationError, setMutationError] = useState<string | null>(null);
 
     //When data or sorting changes, set sortedData
     //This works better with opsimistic updates than directly sorting data in query / mutation functions
@@ -123,10 +141,19 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Fetch data using SWR
     const {
       data: fetchedData,
-      error,
+      error: rawFetcherErr,
       mutate,
       isValidating,
-    } = useSWR(`/${queryName}`, fetchData);
+    } = useSWR(`/${queryName}`, fetchData, {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    });
+
+    //When tableName changes, refetch data
+    useEffect(() => {
+      mutate().catch((err) => setMutationError(getErrMsg(err)));
+    }, [tableName, mutate]);
 
     //When data changes, set data
     //In turn this will cause change to sortedData
@@ -136,12 +163,32 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       }
     }, [fetchedData]);
 
-    //When error changes, set latest error
+    //When error changes from SWR, set fetcherError
     useEffect(() => {
-      if (error) {
-        setLatestError(error);
+      if (rawFetcherErr) {
+        setFetcherError(getErrMsg(rawFetcherErr));
+      } else {
+        setFetcherError(null);
       }
-    }, [error]);
+    }, [rawFetcherErr]);
+
+    //When forceQueryError changes, set fetcherEror
+    useEffect(() => {
+      if (forceQueryError) {
+        setFetcherError('Simulated query error!');
+      } else {
+        setFetcherError(null);
+      }
+    }, [forceQueryError]);
+
+    //When forceMutationError changes, set mutationError
+    useEffect(() => {
+      if (forceMutationError) {
+        setMutationError('Simulated mutation error!');
+      } else {
+        setMutationError(null);
+      }
+    }, [forceMutationError]);
 
     //Define functions to add, edit and delete row
     const addRowOptimistically = useCallback(
@@ -255,28 +302,28 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         setSortDirection(sortDirection);
       },
       refetchRows: async () => {
-        mutate().catch((err) => console.error(err));
+        mutate().catch((err) => setMutationError(getErrMsg(err)));
       },
       deleteRow: async (uniqueIdentifierVal) => {
         mutate(deleteRow(uniqueIdentifierVal), {
           populateCache: true,
           optimisticData: deleteRowOptimistically(data, uniqueIdentifierVal),
-        }).catch((err) => console.error(err));
+        }).catch((err) => setMutationError(getErrMsg(err)));
       },
       addRow: async (row) => {
         mutate(addRow(row), {
           populateCache: true,
           optimisticData: addRowOptimistically(data, row),
-        }).catch((err) => console.error(err));
+        }).catch((err) => setMutationError(getErrMsg(err)));
       },
       editRow: async (row) => {
         mutate(editRow(row), {
           populateCache: true,
           optimisticData: editRowOptimistically(data, row),
-        }).catch((err) => console.error(err));
+        }).catch((err) => setMutationError(getErrMsg(err)));
       },
       clearError: () => {
-        setLatestError(null);
+        setMutationError(null);
       },
     }));
 
@@ -285,11 +332,11 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       <DataProvider
         name={queryName || "SupabaseProvider"}
         data={{
-          isLoading: (isValidating && !fetchedData) || props.forceLoading,
-          isValidating: isValidating || props.forceValidating,
-          currentlyActiveError: error || props.forceCurrentlyActiveError,
-          latestError: latestError || props.forceLatestError,
-          data: props.forceNoData ? null : sortedData,
+          isLoading: (isValidating && !fetchedData) || forceLoading,
+          isValidating: isValidating || forceValidating,
+          mutationError,
+          fetcherError,
+          data: forceNoData ? null : sortedData,
           sort: {
             field: sortField,
             direction: sortDirection,
@@ -297,24 +344,23 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         }}
       >
         {/*Loading state - validating before we initially have data*/}
-        {((isValidating && !fetchedData) || props.forceLoading) &&
-          props.loading}
+        {((isValidating && !fetchedData) || forceLoading) &&
+          loading}
 
         {/*Validating state - any time we are running mutate() to revalidate cache*/}
-        {(isValidating || props.forceValidating) && props.validating}
+        {(isValidating || forceValidating) && validating}
 
         {/*No data state*/}
-        {(!data || data.length === 0 || props.forceNoData) && props.noData}
+        {(!data || data.length === 0 || forceNoData) && noData}
 
         {/*Error state - error is currently there according to SWR*/}
-        {(error || props.forceCurrentlyActiveError) &&
-          props.currentlyActiveError}
+        {(fetcherError && !hideDefaultErrors) && <p>Error from fetching records: {fetcherError}</p>}
 
-        {/*Error state - error that we persist until user cancels it with element actions*/}
-        {(latestError || props.forceLatestError) && props.latestError}
+        {/*Error state - error is currently there according to mutation*/}
+        {(mutationError && !hideDefaultErrors) && <p>Error from mutation: {mutationError}</p>}
 
         {/*Render children with data provider - when we have data*/}
-        {data && props.children}
+        {(data || !tableName) && children}
       </DataProvider>
     );
   }

@@ -1,3 +1,4 @@
+import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { GlobalActionsProvider } from "@plasmicapp/host";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -23,30 +24,37 @@ interface DataProviderData {
 
 interface SupabaseUserComponentProps {
   children: React.ReactNode;
+  redirectOnLoginSuccess?: string;
   simulateLoggedInUser: boolean;
   email: string | null;
   password: string | null;
 }
 
-export const SupabaseUser = (props: SupabaseUserComponentProps) => {
+export const SupabaseUser = ({children, redirectOnLoginSuccess, simulateLoggedInUser, email, password}: SupabaseUserComponentProps) => {
+
+  //Nextjs router
+  const router = useRouter();
+  
+  //Setup state
   const [session, setSession] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [simulateUserSettings, setSimulateUserSettings] = useState({
-    simulateLoggedInUser: props.simulateLoggedInUser,
-    email: props.email,
-    password: props.password,
+    simulateLoggedInUser: simulateLoggedInUser,
+    email: email,
+    password: password,
   });
 
   //Update simulateUserSettings when props change
   useEffect(() => {
     setSimulateUserSettings({
-      simulateLoggedInUser: props.simulateLoggedInUser,
-      email: props.email,
-      password: props.password,
+      simulateLoggedInUser: simulateLoggedInUser,
+      email: email,
+      password: password,
     });
-  }, [props.simulateLoggedInUser, props.email, props.password]);
+  }, [simulateLoggedInUser, email, password]);
 
+  //Callback to get the logged in user's session
   const getSession = useCallback(async () => {
     const supabase = await supabaseBrowserClient(simulateUserSettings);
 
@@ -73,7 +81,8 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
     }
   }, [simulateUserSettings]);
 
-  const fetchSession = useCallback(async () => {
+  //Callback to get the session and set state variable session to the result
+  const getSessionAndSaveToState = useCallback(async () => {
     try {
       const data = await getSession();
       setSession({
@@ -88,15 +97,16 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
     }
   }, [getSession]);
 
-  //Initially fetch the session
+  //Initially fetch the session and save as state
   useEffect(() => {
-    fetchSession();
-  }, [fetchSession]);
+    getSessionAndSaveToState();
+  }, [getSessionAndSaveToState]);
 
+  //Global actions that can be called from plasmic studio
   const actions = useMemo(
     () => ({
+      //Login
       login: async (email: string, password: string) => {
-        setError(null);
         try {
           const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase.auth.signInWithPassword({
@@ -104,45 +114,52 @@ export const SupabaseUser = (props: SupabaseUserComponentProps) => {
             password,
           });
           if (error) throw error;
-          fetchSession();
+          await getSessionAndSaveToState();
+          setError(null);
+          if(redirectOnLoginSuccess && router) router.push(redirectOnLoginSuccess);
+          return;
         } catch (e) {
           setError(getErrMsg(e))
           return;
         }
       },
+      //Logout
       logout: async () => {
-        setError(null);
         try {
           const supabase = await supabaseBrowserClient(simulateUserSettings);
           const { error } = await supabase.auth.signOut();
           if (error) throw error;
-          fetchSession();
+          await getSessionAndSaveToState();
+          setError(null);
+          return;
         } catch (e) {
           setError(getErrMsg(e))
           return;
         }
       },
     }),
-    [fetchSession, simulateUserSettings]
+    [getSessionAndSaveToState, simulateUserSettings, redirectOnLoginSuccess, router]
   );
-
+  
+  //Setup the data that will be passed as global context to Plasmic studio
   const dataProviderData: DataProviderData = {
     user: session,
     simulateUserSettings: {
-      simulateLoggedInUser: props.simulateLoggedInUser,
-      email: props.email,
-      password: props.password,
+      simulateLoggedInUser: simulateLoggedInUser,
+      email: email,
+      password: password,
     },
     error,
   };
 
+  //Render the actual components
   return (
     <GlobalActionsProvider
       contextName="SupabaseUserGlobalContext"
       actions={actions}
     >
       <DataProvider name="SupabaseUser" data={dataProviderData}>
-        {props.children}
+        {children}
       </DataProvider>
     </GlobalActionsProvider>
   );

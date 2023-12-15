@@ -3,6 +3,7 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 //Custom components
 import { SupabaseUser } from "./components/SupabaseUserProvider";
 import { SupabaseProvider } from "./components/SupabaseProvider";
+import { SupabaseAddRowProvider } from "./components/SupabaseAddRowProvider";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -33,6 +34,7 @@ export const PLASMIC = initPlasmicLoader({
 PLASMIC.registerGlobalContext(SupabaseUser, {
   name: "SupabaseUserGlobalContext",
   props: {
+    redirectOnLoginSuccess: "string",
     simulateLoggedInUser: "boolean",
     email: "string",
     password: "string",
@@ -53,7 +55,29 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
     },
     logout: {
       parameters: [],
-    }
+    },
+  },
+});
+
+PLASMIC.registerComponent(SupabaseAddRowProvider, {
+  name: "SupabaseAddRowProvider",
+  providesData: true,
+  props: {
+    children: "slot",
+    tableName: "string",
+    redirectOnSuccess: "string",
+    forceLatestError: "boolean",
+    generateRandomErrors: "boolean",
+  },
+  refActions: {
+    addRow: {
+      description: "add a row",
+      argTypes: [{ name: "row", type: "object" }],
+    },
+    clearError: {
+      description: "clear the latest error message",
+      argTypes: [],
+    },
   },
 });
 
@@ -63,9 +87,12 @@ PLASMIC.registerComponent(SupabaseProvider, {
   props: {
     queryName: {
       type: "string",
-      defaultValue: "SupabaseProvider",
+      required: true,
     },
-    tableName: "string",
+    tableName: {
+      type: "string",
+      required: true,
+    },
     columns: {
       type: "string",
       defaultValue: "*",
@@ -89,9 +116,19 @@ PLASMIC.registerComponent(SupabaseProvider, {
       type: "choice",
       options: ["asc", "desc"],
     },
-    uniqueIdentifierField: "string",
+    uniqueIdentifierField: {
+      type: "string",
+      required: true,
+      defaultValue: "id",
+    },
+    hideDefaultErrors: {
+      type: 'boolean',
+      advanced: true,
+      description: 'Hide default errors so you can use the $ctx values yourself to show custom error messages'
+    },
     placeholdersForOptimisticAdd: {
       type: "array",
+      advanced: true,
       itemType: {
         type: "object",
         fields: {
@@ -102,7 +139,30 @@ PLASMIC.registerComponent(SupabaseProvider, {
       description:
         "Extra values to create your optimistic row, that are not in the add row form",
     },
-    children: "slot",
+    forceLoading: {
+      type: "boolean",
+      advanced: true,
+    },
+    forceValidating: {
+      type: "boolean",
+      advanced: true,
+    },
+    forceNoData: {
+      type: "boolean",
+      advanced: true,
+    },
+    forceQueryError: {
+      type: "boolean",
+      advanced: true,
+    },
+    forceMutationError: {
+      type: "boolean",
+      advanced: true,
+    },
+    generateRandomErrors: {
+      type: "boolean",
+      advanced: true,
+    },
     loading: {
       type: "slot",
       defaultValue: {
@@ -110,7 +170,6 @@ PLASMIC.registerComponent(SupabaseProvider, {
         value: "Loading...",
       },
     },
-    forceLoading: "boolean",
     validating: {
       type: "slot",
       defaultValue: {
@@ -118,23 +177,6 @@ PLASMIC.registerComponent(SupabaseProvider, {
         value: "Validating...",
       },
     },
-    forceValidating: "boolean",
-    currentlyActiveError: {
-      type: "slot",
-      defaultValue: {
-        type: "text",
-        value: "Error not yet resolved",
-      },
-    },
-    forceCurrentlyActiveError: "boolean",
-    latestError: {
-      type: "slot",
-      defaultValue: [
-        { type: "text", value: "Error click to clear" },
-        { type: "button", value: "Clear error" },
-      ],
-    },
-    forceLatestError: "boolean",
     noData: {
       type: "slot",
       defaultValue: {
@@ -142,8 +184,21 @@ PLASMIC.registerComponent(SupabaseProvider, {
         value: "No data",
       },
     },
-    forceNoData: "boolean",
-    generateRandomErrors: "boolean",
+    children: {
+      type: "slot",
+      defaultValue: [
+        {
+          type: "text",
+          value:
+            `INSTRUCTIONS FOR SUPABASE PROVIDER:
+            1. Click the new SupabaseProvider component in the Component tree (LHS of screen) to open it's settings
+            2. In settings on RHS of screen, choose a globally unique "Query name" (eg "/pagename/staff")
+            3. Enter the correct "table name" from Supabase (eg "staff")
+            4. On LHS of screen, change the name of SupabaseProvider to match the query name
+            5. Delete this placeholder text (from "children" slot). Then add components to "children" and use the dynamic data as you wish! :)`,
+        },
+      ],
+    },
   },
   refActions: {
     sortRows: {
