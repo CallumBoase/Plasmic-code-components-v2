@@ -1,3 +1,12 @@
+## Supabase code components
+
+This repo, currently being developed by Callum Boase, extends the basic plasmic starter repo (next.js bootstrapped with create-plasmic-app) by adding code components for interacting with Supabase via it's API.
+
+My current plan is to try to use Supabase Auth without plasmic auth
+
+I'm working on this on my own, and am open to collaborating with our devs.
+
+
 This is a Next.js project bootstrapped with [`create-plasmic-app`](https://www.npmjs.com/package/create-plasmic-app).
 
 ## Getting Started
@@ -12,13 +21,6 @@ Open your browser to see the result.
 
 You can start editing your project in Plasmic Studio. The page auto-updates as you edit the project.
 
-## Supabase code components
-
-This repo, currently being developed by Callum Boase, extends the basic plasmic starter repo (next.js bootstrapped with create-plasmic-app) by adding code components for interacting with Supabase via it's API.
-
-My current plan is to try to use Supabase Auth without plasmic auth
-
-I'm working on this on my own, and am open to collaborating with our devs.
 
 ## What this repo contains so far
 
