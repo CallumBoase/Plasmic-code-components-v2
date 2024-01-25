@@ -33,7 +33,7 @@ You can start editing your project in Plasmic Studio. The page auto-updates as y
 * /utils: some helpers that allow the components to work.
 
 ## Demo of these code components in action
-See video [https://drive.google.com/open?id=1CflwiJsyrdlkvtlgf1y-IzP7xlp1XjVP&usp=drive_fs](here)
+See video [here](https://drive.google.com/open?id=1CflwiJsyrdlkvtlgf1y-IzP7xlp1XjVP&usp=drive_fs)
 
 ## More info coming soon.....
 
