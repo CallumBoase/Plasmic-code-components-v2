@@ -18,9 +18,7 @@ import getErrMsg from "@/utils/getErrMsg";
 type Row = {
   [key: string]: any;
 };
-type RowFromAddForm = {
-  [key: string]: any;
-};
+
 type Rows = Row[] | null;
 
 type FetchData = () => Promise<Rows>;
@@ -29,14 +27,9 @@ interface Actions {
   sortRows(sortField: string, sortDirection: "asc" | "desc"): Promise<void>;
   refetchRows(): Promise<void>;
   deleteRow(id: any): void;
-  addRow(rowFromAddForm: any): void;
+  addRow(fullRow: any, rowForSupabase: any): void;
   editRow(fullRow: any, rowForSupabase: any): void;
 }
-
-type PlaceholderForOptimisticAdd = {
-  fieldName: string;
-  value: any;
-};
 
 interface SupabaseProviderProps {
   queryName: string;
@@ -45,7 +38,6 @@ interface SupabaseProviderProps {
   filters?: Filter[];
   uniqueIdentifierField: string;
   hideDefaultErrors: boolean;
-  placeholdersForOptimisticAdd: PlaceholderForOptimisticAdd[] | null;
   children: React.ReactNode;
   loading: React.ReactNode;
   validating: React.ReactNode;
@@ -71,7 +63,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       filters,
       uniqueIdentifierField,
       hideDefaultErrors,
-      placeholdersForOptimisticAdd,
       children,
       loading,
       validating,
@@ -191,27 +182,29 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     }, [forceMutationError]);
 
     //Define functions to add, edit and delete row
+
+    //Function for optimistic add of a row
+    //Adds a new row to the end of the array
+    //This will be sorted automatically by useEffect above
     const addRowOptimistically = useCallback(
-      (data: Rows | null, row: RowFromAddForm) => {
-        //Convert array of placeholders in format of {fieldName, value} to object {fieldName: value}
-        const extraData = placeholdersForOptimisticAdd?.reduce((acc, curr) => {
-          return { ...acc, [curr.fieldName]: curr.value };
-        }, {});
-        const opsimisticRow = { ...row, ...extraData };
-        const newData = [...(data || []), opsimisticRow];
+      (data: Rows | null, fullRow: Row) => {
+        const newData = [...(data || []), fullRow];
         return newData;
       },
-      [placeholdersForOptimisticAdd]
+      []
     );
 
+    //Function to actually add row in supabase
+    //Calls addRowOptimistically to return sucessfully added row without refetch,
+    //avoiding double refetch since useSWR will revalidate all rows after mutate is done anyway
     const addRow = useCallback(
-      async (row: RowFromAddForm) => {
+      async (fullRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on addRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
-        const { error } = await supabase.from(tableName).insert(row);
+        const { error } = await supabase.from(tableName).insert(rowForSupabase);
         if (error) throw error;
-        return addRowOptimistically(data, row);
+        return addRowOptimistically(data, fullRow);
       },
       [
         simulateUserSettings,
@@ -225,13 +218,13 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Function for optimistic update of row
     //Replaces the row by matching uniqueIdentifierField (id)
     const editRowOptimistically = useCallback(
-      (data: Rows, row: Row) => {
+      (data: Rows, fullRow: Row) => {
         const newData =
           data?.map((existingRow) => {
             if (
-              row[uniqueIdentifierField] === existingRow[uniqueIdentifierField]
+              fullRow[uniqueIdentifierField] === existingRow[uniqueIdentifierField]
             ) {
-              return row;
+              return fullRow;
             }
             return existingRow;
           }) || [];
@@ -315,10 +308,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           optimisticData: deleteRowOptimistically(data, uniqueIdentifierVal),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
-      addRow: async (row) => {
-        mutate(addRow(row), {
+      addRow: async (fullRow, rowForSupabase) => {
+        mutate(addRow(fullRow, rowForSupabase), {
           populateCache: true,
-          optimisticData: addRowOptimistically(data, row),
+          optimisticData: addRowOptimistically(data, fullRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
       editRow: async (fullRow, rowForSupabase) => {

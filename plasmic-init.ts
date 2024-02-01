@@ -126,19 +126,6 @@ PLASMIC.registerComponent(SupabaseProvider, {
       advanced: true,
       description: 'Hide default errors so you can use the $ctx values yourself to show custom error messages'
     },
-    placeholdersForOptimisticAdd: {
-      type: "array",
-      advanced: true,
-      itemType: {
-        type: "object",
-        fields: {
-          fieldName: "string",
-          value: "string",
-        },
-      },
-      description:
-        "Extra values to create your optimistic row, that are not in the add row form",
-    },
     forceLoading: {
       type: "boolean",
       advanced: true,
@@ -218,7 +205,10 @@ PLASMIC.registerComponent(SupabaseProvider, {
     },
     addRow: {
       description: "add a row",
-      argTypes: [{ name: "row", type: "object" }],
+      argTypes: [
+        { name: "fullRow", type: "object" },
+        { name: "rowForSupabase", type: "object" }
+      ],
     },
     editRow: {
       description: "edit row",
