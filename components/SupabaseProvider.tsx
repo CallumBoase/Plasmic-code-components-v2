@@ -30,7 +30,7 @@ interface Actions {
   refetchRows(): Promise<void>;
   deleteRow(id: any): void;
   addRow(rowFromAddForm: any): void;
-  editRow(row: any): void;
+  editRow(fullRow: any, rowForSupabase: any): void;
 }
 
 type PlaceholderForOptimisticAdd = {
@@ -221,7 +221,9 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         tableName,
       ]
     );
-
+    
+    //Function for optimistic update of row
+    //Replaces the row by matching uniqueIdentifierField (id)
     const editRowOptimistically = useCallback(
       (data: Rows, row: Row) => {
         const newData =
@@ -238,17 +240,20 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       [uniqueIdentifierField]
     );
 
+    //Function to actually update row in supabase
+    //Calls editRowOptimistically to return sucessfully updated row without refetch, 
+    //avoiding double refetch since useSWR will revalidate all rows after mutate
     const editRow = useCallback(
-      async (row: Row) => {
+      async (fullRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on editRow");
         const supabase = await supabaseBrowserClient(simulateUserSettings);
         const { error } = await supabase
           .from(tableName)
-          .update(row)
-          .eq(uniqueIdentifierField, row[uniqueIdentifierField]);
+          .update(rowForSupabase)
+          .eq(uniqueIdentifierField, rowForSupabase[uniqueIdentifierField]);
         if (error) throw error;
-        return editRowOptimistically(data, row);
+        return editRowOptimistically(data, fullRow);
       },
       [
         simulateUserSettings,
@@ -316,10 +321,10 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           optimisticData: addRowOptimistically(data, row),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
-      editRow: async (row) => {
-        mutate(editRow(row), {
+      editRow: async (fullRow, rowForSupabase) => {
+        mutate(editRow(fullRow, rowForSupabase), {
           populateCache: true,
-          optimisticData: editRowOptimistically(data, row),
+          optimisticData: editRowOptimistically(data, fullRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
       clearError: () => {

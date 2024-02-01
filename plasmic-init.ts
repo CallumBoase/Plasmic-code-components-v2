@@ -222,7 +222,10 @@ PLASMIC.registerComponent(SupabaseProvider, {
     },
     editRow: {
       description: "edit row",
-      argTypes: [{ name: "row", type: "object" }],
+      argTypes: [
+        { name: "fullRow", type: "object" },
+        { name: "rowForSupabase", type: "object"}
+      ],
     },
     clearError: {
       description: "clear the latest error message",
