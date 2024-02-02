@@ -217,6 +217,14 @@ PLASMIC.registerComponent(SupabaseProvider, {
         { name: "rowForSupabase", type: "object"}
       ],
     },
+    rpcForAddRow: {
+      description: 'RPC for add row',
+      argTypes: [
+        { name: "rpcName", type: "string" },
+        { name: "fullRow", type: "object" },
+        { name: "rowForSupabase", type: "object"}
+      ]
+    },
     clearError: {
       description: "clear the latest error message",
       argTypes: [],

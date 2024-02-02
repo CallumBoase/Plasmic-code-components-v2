@@ -29,6 +29,7 @@ interface Actions {
   deleteRow(id: any): void;
   addRow(fullRow: any, rowForSupabase: any): void;
   editRow(fullRow: any, rowForSupabase: any): void;
+  rpcForAddRow(rpcName: string, fullRow: any, rowForSupabase: any): void;
 }
 
 interface SupabaseProviderProps {
@@ -214,6 +215,26 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         tableName,
       ]
     );
+
+    //Function to run an RPC for adding a row
+    const rpcForAddRow = useCallback(
+      async (rpcName : string, fullRow: Row, rowForSupabase: Row) => {
+        if (generateRandomErrors && Math.random() > 0.5)
+          throw new Error("Randomly generated error on rpcForAddRow");
+        const supabase = await supabaseBrowserClient(simulateUserSettings);
+        //Typescript ignore next line temp
+        // @ts-ignore
+        const { error } = await supabase.rpc(rpcName, rowForSupabase)
+        if (error) throw error;
+        return addRowOptimistically(data, fullRow);
+      },
+      [
+        simulateUserSettings,
+        data,
+        generateRandomErrors,
+        addRowOptimistically,
+      ]
+    );
     
     //Function for optimistic update of row
     //Replaces the row by matching uniqueIdentifierField (id)
@@ -318,6 +339,12 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         mutate(editRow(fullRow, rowForSupabase), {
           populateCache: true,
           optimisticData: editRowOptimistically(data, fullRow),
+        }).catch((err) => setMutationError(getErrMsg(err)));
+      },
+      rpcForAddRow: async (rpcName, fullRow, rowForSupabase) => {
+        mutate(rpcForAddRow(rpcName, fullRow, rowForSupabase), {
+          populateCache: true,
+          optimisticData: addRowOptimistically(data, fullRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
       clearError: () => {
