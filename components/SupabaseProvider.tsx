@@ -33,6 +33,7 @@ interface Actions {
 }
 
 interface SupabaseProviderProps {
+  className?: string;
   queryName: string;
   tableName: string;
   columns: string;
@@ -58,6 +59,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
   function SupabaseProvider(props, ref) {
     const {
       //All avialable props destructured
+      className,
       queryName,
       tableName,
       columns,
@@ -354,39 +356,41 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     //Render the component
     return (
-      <DataProvider
-        name={queryName || "SupabaseProvider"}
-        data={{
-          isLoading: (isValidating && !fetchedData) || forceLoading,
-          isValidating: isValidating || forceValidating,
-          mutationError,
-          fetcherError,
-          data: forceNoData ? null : sortedData,
-          sort: {
-            field: sortField,
-            direction: sortDirection,
-          },
-        }}
-      >
-        {/*Loading state - validating before we initially have data*/}
-        {((isValidating && !fetchedData) || forceLoading) &&
-          loading}
+      <div className={className}>
+        <DataProvider
+          name={queryName || "SupabaseProvider"}
+          data={{
+            isLoading: (isValidating && !fetchedData) || forceLoading,
+            isValidating: isValidating || forceValidating,
+            mutationError,
+            fetcherError,
+            data: forceNoData ? null : sortedData,
+            sort: {
+              field: sortField,
+              direction: sortDirection,
+            },
+          }}
+        >
+          {/*Loading state - validating before we initially have data*/}
+          {((isValidating && !fetchedData) || forceLoading) &&
+            loading}
 
-        {/*Validating state - any time we are running mutate() to revalidate cache*/}
-        {(isValidating || forceValidating) && validating}
+          {/*Validating state - any time we are running mutate() to revalidate cache*/}
+          {(isValidating || forceValidating) && validating}
 
-        {/*No data state*/}
-        {(!data || data.length === 0 || forceNoData) && noData}
+          {/*No data state*/}
+          {(!data || data.length === 0 || forceNoData) && noData}
 
-        {/*Error state - error is currently there according to SWR*/}
-        {(fetcherError && !hideDefaultErrors) && <p>Error from fetching records: {fetcherError}</p>}
+          {/*Error state - error is currently there according to SWR*/}
+          {(fetcherError && !hideDefaultErrors) && <p>Error from fetching records: {fetcherError}</p>}
 
-        {/*Error state - error is currently there according to mutation*/}
-        {(mutationError && !hideDefaultErrors) && <p>Error from mutation: {mutationError}</p>}
+          {/*Error state - error is currently there according to mutation*/}
+          {(mutationError && !hideDefaultErrors) && <p>Error from mutation: {mutationError}</p>}
 
-        {/*Render children with data provider - when we have data*/}
-        {(data || !tableName) && children}
-      </DataProvider>
+          {/*Render children with data provider - when we have data*/}
+          {(data || !tableName) && children}
+        </DataProvider>
+      </div>
     );
   }
 );

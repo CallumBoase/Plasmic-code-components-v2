@@ -20,6 +20,7 @@ interface Actions {
 }
 
 interface SupabaseAddRowProviderProps {
+  className?: string;
   tableName: string;
   redirectOnSuccess?: string;
   children: React.ReactNode;
@@ -33,6 +34,7 @@ export const SupabaseAddRowProvider = forwardRef<
   SupabaseAddRowProviderProps
 >(function SupabaseAddRowProvider(props, ref) {
   const {
+    className,
     tableName,
     redirectOnSuccess,
     generateRandomErrors,
@@ -84,13 +86,15 @@ export const SupabaseAddRowProvider = forwardRef<
 
   //Render the component
   return (
-    <DataProvider
-      name="SupabaseAddRowProvider"
-      data={{
-        latestError: latestError || forceLatestError,
-      }}
-    >
-      {children}
-    </DataProvider>
+    <div className={className}>
+      <DataProvider
+        name="SupabaseAddRowProvider"
+        data={{
+          latestError: latestError || forceLatestError,
+        }}
+      >
+        {children}
+      </DataProvider>
+    </div>
   );
 });
