@@ -88,7 +88,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess, simulateLoggedIn
       setSession({
         email: data.session?.user.email || null,
         role: data.session?.user.role || null,
-        user_metadata: data.session?.user.user_metadata || null,
+        user_metadata: data.session?.user.user_metadata || null
       });
       setError(null);
     } catch (e) {
@@ -109,12 +109,18 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess, simulateLoggedIn
       login: async (email: string, password: string) => {
         try {
           const supabase = await supabaseBrowserClient(simulateUserSettings);
-          const { error } = await supabase.auth.signInWithPassword({
+          const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
           if (error) throw error;
-          await getSessionAndSaveToState();
+          // await getSessionAndSaveToState();
+          //Seems to work where the above does not
+          setSession({
+            email: data?.user.email || null,
+            role: data?.user.role || null,
+            user_metadata: data?.user.user_metadata || null,
+          })
           setError(null);
           if(redirectOnLoginSuccess && router) router.push(redirectOnLoginSuccess);
           return;
