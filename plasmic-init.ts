@@ -53,8 +53,36 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
         },
       ],
     },
+    signup: {
+      parameters: [
+        {
+            name: "email",
+            type: "string",
+        },
+        {
+            name: "password",
+            type: "string",
+        },
+      ],
+    },
     logout: {
       parameters: [],
+    },
+    resetPasswordForEmail: {
+      parameters: [
+        {
+          name: "email",
+          type: "string",
+        },
+      ],
+    },
+    updateUserPassword: {
+      parameters: [
+        {
+          name: "password",
+          type: "string",
+        },
+      ],
     },
   },
 });
