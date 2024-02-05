@@ -1,7 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = ["/middlewareprotected"]; // the list of protected routes. This could be adapated to take and array from the GlobalContextProvider
+// the list of protected routes. This could be adapated to take and array from the GlobalContextProvider
+const protectedRoutes = [
+  "/middlewareprotected",
+  "/010224"
+]; 
 
 export async function middleware(request: NextRequest) {
   // create a response that we can later modify the headers for
