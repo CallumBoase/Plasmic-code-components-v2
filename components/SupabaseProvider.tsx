@@ -114,7 +114,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Function that can be called to fetch data
     const fetchData: FetchData = useCallback(async () => {
       //New client
-      const supabase = await supabaseBrowserClient(simulateUserSettings);
+      const supabase = supabaseBrowserClient();
 
       //Build the query with dynamic filters that were passed as props to the component
       const supabaseQuery = buildSupabaseQueryWithDynamicFilters({
@@ -130,7 +130,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         throw error;
       }
       return data;
-    }, [simulateUserSettings, tableName, columns, filters]);
+    }, [tableName, columns, filters]);
 
     //Fetch data using SWR
     const {
@@ -204,13 +204,12 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       async (fullRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on addRow");
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
+        const supabase = supabaseBrowserClient();
         const { error } = await supabase.from(tableName).insert(rowForSupabase);
         if (error) throw error;
         return addRowOptimistically(data, fullRow);
       },
       [
-        simulateUserSettings,
         data,
         generateRandomErrors,
         addRowOptimistically,
@@ -223,7 +222,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       async (rpcName : string, fullRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on rpcForAddRow");
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
+        const supabase = supabaseBrowserClient();
         //Typescript ignore next line temp
         // @ts-ignore
         const { error } = await supabase.rpc(rpcName, rowForSupabase)
@@ -231,7 +230,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         return addRowOptimistically(data, fullRow);
       },
       [
-        simulateUserSettings,
         data,
         generateRandomErrors,
         addRowOptimistically,
@@ -263,7 +261,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       async (fullRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on editRow");
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
+        const supabase = supabaseBrowserClient();
         const { error } = await supabase
           .from(tableName)
           .update(rowForSupabase)
@@ -272,7 +270,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         return editRowOptimistically(data, fullRow);
       },
       [
-        simulateUserSettings,
         data,
         generateRandomErrors,
         editRowOptimistically,
@@ -296,7 +293,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       async (uniqueIdentifierVal: number | string) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on deleteRow");
-        const supabase = await supabaseBrowserClient(simulateUserSettings);
+        const supabase = supabaseBrowserClient();
         const { error } = await supabase
           .from(tableName)
           .delete()
@@ -306,7 +303,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         //use-swr will now revalidate data so no need to refetch single one here
       },
       [
-        simulateUserSettings,
         data,
         generateRandomErrors,
         tableName,

@@ -22,14 +22,16 @@ function cookiesAvailable() {
 
 }
 
-const supabaseBrowserClient = async () => {
+const supabaseBrowserClient = () => {
   //Create the supabase client like normal
   const supabase = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      //Use the default cookies behaviour in createBrowserClient unchanged
-      //(included because it's a mandatory parameter in the options object)
+      //Override the default behaviour of how supabase handles storing of session data of logged in user
+      //Reason: Plasmic studio & Plasmic studio -> Preview runs the app in an iframe which doesn't seem to support setting or getting of cookies
+      //Therefore, when running in plasmic studio, we store session data in localStorage instead
+      //However, we retain default behaviour of using cookies outside of Plasmic studio for security & functionality benefits
       cookies: {
 
         //Override the default behaviour of how supabase gets session data of logged in user
