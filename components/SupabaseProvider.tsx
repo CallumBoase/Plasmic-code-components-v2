@@ -5,7 +5,7 @@ import {
   useImperativeHandle,
   useCallback,
 } from "react";
-import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
+import { DataProvider } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
@@ -79,12 +79,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       initialSortField,
       initialSortDirection,
     } = props;
-
-    //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
-    //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
-    //Because iframe rendered app (in studio) can't access localStorage or Cookies when auth tokens are stored
-    const dataEnv = useDataEnv();
-    const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
 
     //Setup state
     const [data, setData] = useState<Rows>(null);

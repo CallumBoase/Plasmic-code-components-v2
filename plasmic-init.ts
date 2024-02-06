@@ -35,9 +35,6 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
   name: "SupabaseUserGlobalContext",
   props: {
     redirectOnLoginSuccess: "string",
-    simulateLoggedInUser: "boolean",
-    email: "string",
-    password: "string",
   },
   providesData: true,
   globalActions: {
