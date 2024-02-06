@@ -163,7 +163,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
           if(typeof window !== 'undefined') {
             // window.localStorage.setItem('sb-token-plasmic-saved', data?.session?.access_token);
             // window.localStorage.setItem('sb-session-plasmic-saved', JSON.stringify(data?.session));
-            window.localStorage.setItem('sb-custom-storage-key', JSON.stringify(data?.session));
+            //window.localStorage.setItem('sb-custom-storage-key', JSON.stringify(data?.session));
           }
           
           setError(null);
