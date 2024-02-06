@@ -3,12 +3,11 @@ import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { GlobalActionsProvider } from "@plasmicapp/host";
 import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
-import type { Json } from "@/types/supabase";
 import getErrMsg from "@/utils/getErrMsg";
 import type { AuthTokenResponse } from "@supabase/supabase-js";
 
 interface DataProviderData {
-  session: AuthTokenResponse["data"]["session"] | null;
+  user: AuthTokenResponse["data"]["user"] | null;
   error: string | null;
 }
 
@@ -23,72 +22,41 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
   const router = useRouter();
  
   //Setup state
-  const [session, setSession] = useState<AuthTokenResponse["data"]["session"] | null>(null);
+  const [user, setUser] = useState<AuthTokenResponse["data"]["user"] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  //Callback to get the logged in user's session
-  // const getSession = useCallback(async () => {
-  //   const supabase = await supabaseBrowserClient(simulateUserSettings);
+  //Helper function to get the user and save to state
+  async function getUserAndSaveToState() {
 
-  //   if (!simulateUserSettings.simulateLoggedInUser) {
-  //     //If we are NOT simulating logged in user, get session from localStorage / cookies
-  //     const { data, error } = await supabase.auth.getSession();
-  //     if (error) throw error;
-  //     return data;
-  //   } else {
-  //     //If we are simulating logged in user, sign in with email and password to get session instead
-  //     //Reason: getSession() won't work because the Plasmic studio renders the app in an iframe
-  //     const validFields =
-  //       simulateUserSettings.email && simulateUserSettings.password;
-  //     if (!validFields)
-  //       throw new Error(
-  //         "You must provide an email and password to simulate a logged in user (Project settings -> SupabaseUser)"
-  //       );
-  //     const { data, error } = await supabase.auth.signInWithPassword({
-  //       email: simulateUserSettings.email as string,
-  //       password: simulateUserSettings.password as string,
-  //     });
-  //     if (error) throw error;
-  //     return data;
-  //   }
-  // }, [simulateUserSettings]);
+    const supabase = supabaseBrowserClient();
 
-  //Callback to get the session and set state variable session to the result
-  // const getSessionAndSaveToState = useCallback(async () => {
-  //   try {
-  //     const data = await getSession();
-  //     setSession({
-  //       email: data.session?.user.email || null,
-  //       role: data.session?.user.role || null,
-  //       user_metadata: data.session?.user.user_metadata || null
-  //     });
-  //     setError(null);
-  //   } catch (e) {
-  //     setError(getErrMsg(e))
-  //     return;
-  //   }
-  // }, [getSession]);
+    //Get the session from stored credentials (not from the server)
+    let { data: getSessionData, error: getSessionError } = await supabase.auth.getSession();
+    if (getSessionError) {
+      throw getSessionError;
+    }
 
-  //Initially fetch the session and save as state
-  // useEffect(() => {
-  //   getSessionAndSaveToState();
-  // }, [getSessionAndSaveToState]);
+    //If no session, set user to null
+    if(!getSessionData.session) {
+      setUser(null);
+      setError(null)
+      return;
+    }
+
+    //If there is a session, save the user to state
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error(error);
+      throw error;
+    }
+    setUser(data?.user);
+
+  }
+
 
   //On initial load, set the session to state
   useEffect(() => {
-    
-    const supabase = supabaseBrowserClient();
-      
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        console.error(error);
-        throw error;
-      }
-      setSession(data?.session);
-
-    }).catch((e) => {
-      setError(getErrMsg(e))
-    }) ;
+    getUserAndSaveToState();
   }, [])
 
   //Global actions that can be called from plasmic studio
@@ -107,7 +75,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
           }
           
           //Save the session to state
-          setSession(data?.session);
+          setUser(data?.session?.user);
           
           //Reset errors if present
           setError(null);
@@ -131,7 +99,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
             throw error;
           }
           //Reset the session in state
-          setSession(null);
+          setUser(null);
 
           //Reset errors if present
           setError(null);
@@ -148,7 +116,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
   
   //Setup the data that will be passed as global context to Plasmic studio
   const dataProviderData: DataProviderData = {
-    session,
+    user,
     error,
   };
 
