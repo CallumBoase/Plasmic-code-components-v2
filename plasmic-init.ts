@@ -203,23 +203,23 @@ PLASMIC.registerComponent(SupabaseProvider, {
     addRow: {
       description: "add a row",
       argTypes: [
+        { name: "rowForSupabase", type: "object" },
         { name: "fullRow", type: "object" },
-        { name: "rowForSupabase", type: "object" }
       ],
     },
     editRow: {
       description: "edit row",
       argTypes: [
+        { name: "rowForSupabase", type: "object"},
         { name: "fullRow", type: "object" },
-        { name: "rowForSupabase", type: "object"}
       ],
     },
     rpcForAddRow: {
       description: 'RPC for add row',
       argTypes: [
         { name: "rpcName", type: "string" },
+        { name: "rowForSupabase", type: "object"},
         { name: "fullRow", type: "object" },
-        { name: "rowForSupabase", type: "object"}
       ]
     },
     clearError: {
