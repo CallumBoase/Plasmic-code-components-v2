@@ -214,12 +214,16 @@ PLASMIC.registerComponent(SupabaseProvider, {
         { name: "fullRow", type: "object" },
       ],
     },
-    rpcForAddRow: {
+    runRpc: {
       description: 'RPC for add row',
       argTypes: [
         { name: "rpcName", type: "string" },
-        { name: "rowForSupabase", type: "object"},
-        { name: "fullRow", type: "object" },
+        { name: "dataForSupabase", type: "object"},
+        { name: "optimisticallyAddRow", type: "boolean" },
+        { name: "optimisticallyEditRow", type: "boolean" },
+        { name: "optimisticallyDeleteRow", type: "boolean" },
+        { name: "optimisticallyReplaceData", type: "boolean" },
+        { name: "optimisticData", type: "object" },
       ]
     },
     clearError: {

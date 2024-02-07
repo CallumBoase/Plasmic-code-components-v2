@@ -13,6 +13,7 @@ import buildSupabaseQueryWithDynamicFilters, {
   type Filter,
 } from "@/utils/buildSupabaseQueryWithDynamicFilters";
 import getErrMsg from "@/utils/getErrMsg";
+import zeroOrExactlyOneTrue from "@/utils/checkArrayOfBooleans";
 
 //Declare types
 type Row = {
@@ -29,7 +30,15 @@ interface Actions {
   deleteRow(id: any): void;
   addRow(fullRow: any, rowForSupabase: any): void;
   editRow(fullRow: any, rowForSupabase: any): void;
-  rpcForAddRow(rpcName: string, fullRow: any, rowForSupabase: any): void;
+  runRpc(
+    rpcName: string, 
+    dataForSupabase: any, 
+    optimisticallyAddRow: boolean, 
+    optimisticallyEditRow: boolean, 
+    optimisticallyDeleteRow: boolean,
+    optimisticallyReplaceData: boolean,
+    optimisticData: any
+  ): void;
 }
 
 interface SupabaseProviderProps {
@@ -180,6 +189,20 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     //Define functions to add, edit and delete row
 
+    //Function that just returns the data unchanged
+    //To use when we aren't running optimistic updates
+    function returnUnchangedData(data: Rows, optimisticData: any){
+      return data;
+    }
+    
+    //Function to replace entire optimistic data
+    const replaceDataOptimistically = useCallback(
+      (newData: Rows) => {
+        return newData;
+      },
+      []
+    );
+
     //Function for optimistic add of a row
     //Adds a new row to the end of the array
     //This will be sorted automatically by useEffect above
@@ -208,25 +231,6 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         generateRandomErrors,
         addRowOptimistically,
         tableName,
-      ]
-    );
-
-    //Function to run an RPC for adding a row
-    const rpcForAddRow = useCallback(
-      async (rpcName : string, fullRow: Row, rowForSupabase: Row) => {
-        if (generateRandomErrors && Math.random() > 0.5)
-          throw new Error("Randomly generated error on rpcForAddRow");
-        const supabase = supabaseBrowserClient();
-        //Typescript ignore next line temp
-        // @ts-ignore
-        const { error } = await supabase.rpc(rpcName, rowForSupabase)
-        if (error) throw error;
-        return addRowOptimistically(data, fullRow);
-      },
-      [
-        data,
-        generateRandomErrors,
-        addRowOptimistically,
       ]
     );
     
@@ -305,6 +309,70 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       ]
     );
 
+    //Function to run an RPC (database function)
+    const rpc = useCallback(
+      async (
+        rpcName : string, 
+        dataForSupabase: any, 
+        optimisticData: any,
+        optimisticFunc: (data: Rows, optimisticData: any) => Rows
+      ) => {
+        if (generateRandomErrors && Math.random() > 0.5)
+          throw new Error("Randomly generated error on run RPC");
+
+        const supabase = supabaseBrowserClient();
+        //Typescript ignore next line temp
+        // @ts-ignore
+        const { error } = await supabase.rpc(rpcName, dataForSupabase)
+        if (error) throw error;
+
+        //Return optimistic data to avoid refetch here
+        //Since useSWR is about to refetch anyway
+        return optimisticFunc(data, optimisticData);
+      },
+      [
+        data,
+        generateRandomErrors,
+      ]
+    );
+
+    //Helper function to choose the correct optimistic data function based on user's settings
+    function chooseOptimisticFunc(
+      shouldOptimisticallyAddRow: boolean, 
+      shouldOptimisticallyEditRow: boolean, 
+      shouldOptimisticallyDeleteRow: boolean, 
+      shouldOptimisticallyReplaceData: boolean,
+      elementActionName: string
+      ){
+
+        const optimisticSettings = [
+          shouldOptimisticallyAddRow,
+          shouldOptimisticallyEditRow,
+          shouldOptimisticallyDeleteRow,
+          shouldOptimisticallyReplaceData
+        ];
+
+        if(!zeroOrExactlyOneTrue(optimisticSettings)){
+          throw new Error(`
+            Error choosing in element action: ${elementActionName}. 
+            You have enabled more than one of the optimistic operation toggles: ${optimisticSettings.map(setting => setting ? 'true' : 'false').join(', ')}.
+            Please set only one of the toggles to true (or disable all of them).
+          `);
+        }
+
+        if(shouldOptimisticallyAddRow){
+          return addRowOptimistically;
+        } else if(shouldOptimisticallyEditRow){
+          return editRowOptimistically;
+        } else if(shouldOptimisticallyDeleteRow){
+          return deleteRowOptimistically;
+        } else if(shouldOptimisticallyReplaceData){
+          return replaceDataOptimistically;
+        } else {
+          return returnUnchangedData;
+        }
+    }
+
     //Define element actions which can be called outside this component in Plasmic Studio
     //Note the opsimistic updates
     useImperativeHandle(ref, () => ({
@@ -333,12 +401,47 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           optimisticData: editRowOptimistically(data, fullRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
-      rpcForAddRow: async (rpcName, fullRow, rowForSupabase) => {
-        mutate(rpcForAddRow(rpcName, fullRow, rowForSupabase), {
+      //Element action to run a supabase RPC (database function)
+      runRpc: async (
+        rpcName, 
+        dataForSupabase,
+        optimisticallyAddRow,
+        optimisticallyEditRow,
+        optimisticallyDeleteRow,
+        optimisticallyReplaceData,
+        optimisticData
+      ) => {
+
+        console.log('run RPC')
+        console.log(optimisticallyAddRow)
+        console.log(optimisticallyEditRow)
+        console.log(optimisticallyDeleteRow)
+        console.log(optimisticallyReplaceData)
+        console.log(optimisticData)
+
+        //Choose the correct optimistic function based on user's settings in the element action in studio
+        const optimisticFunc = chooseOptimisticFunc(
+          optimisticallyAddRow,
+          optimisticallyEditRow,
+          optimisticallyDeleteRow,
+          optimisticallyReplaceData,
+          'Run RPC'//The name of the element action for error messages
+        );
+
+        //Run the operation with optimistically updated data
+        //If no optimistic operation is indicated, the data will be returned unchanged via returnUnchangedData function
+        mutate(rpc(
+          rpcName, 
+          dataForSupabase, 
+          optimisticData,
+          optimisticFunc
+        ), {
           populateCache: true,
-          optimisticData: addRowOptimistically(data, fullRow),
+          optimisticData: optimisticFunc(data, optimisticData),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
+
+      //Element action to Clear any mutation errors
       clearError: () => {
         setMutationError(null);
       },
