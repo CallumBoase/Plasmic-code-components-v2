@@ -4,7 +4,7 @@ import {
   useImperativeHandle,
   useCallback
 } from "react";
-import { DataProvider, useDataEnv } from "@plasmicapp/loader-nextjs";
+import { DataProvider } from "@plasmicapp/loader-nextjs";
 import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
 import getErrMsg from "@/utils/getErrMsg";
 import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
@@ -44,12 +44,6 @@ export const SupabaseAddRowProvider = forwardRef<
 
   const router = useRouter();
 
-  //Get global context value simulateUserSettings from Plasmic Studio (as entered by user)
-  //This helps us initialise supabase with a simulated logged in user when viewing pages in the Studio or Preview
-  //Because iframe rendered app (in studio) can't access localStorage or Cookies when auth tokens are stored
-  const dataEnv = useDataEnv();
-  const simulateUserSettings = dataEnv?.SupabaseUser.simulateUserSettings;
-
   //Setup state
   const [latestError, setLatestError] = useState<string | null>(null);
 
@@ -59,12 +53,12 @@ export const SupabaseAddRowProvider = forwardRef<
     async (row: RowFromAddForm) => {
       if (generateRandomErrors && Math.random() > 0.5)
         throw new Error("Randomly generated error on addRow");
-      const supabase = await supabaseBrowserClient(simulateUserSettings);
+      const supabase = supabaseBrowserClient();
       const { error } = await supabase.from(tableName).insert(row);
       if (error) throw error;
       return;
     },
-    [simulateUserSettings, generateRandomErrors, tableName]
+    [ generateRandomErrors, tableName]
   );
 
   //Define element actions which can be called outside this component in Plasmic Studio
