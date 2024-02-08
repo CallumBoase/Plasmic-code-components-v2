@@ -13,7 +13,6 @@ import buildSupabaseQueryWithDynamicFilters, {
   type Filter,
 } from "@/utils/buildSupabaseQueryWithDynamicFilters";
 import getErrMsg from "@/utils/getErrMsg";
-import zeroOrExactlyOneTrue from "@/utils/checkArrayOfBooleans";
 
 //Declare types
 type Row = {
@@ -28,11 +27,11 @@ interface Actions {
   sortRows(sortField: string, sortDirection: "asc" | "desc"): Promise<void>;
   refetchRows(): Promise<void>;
   deleteRow(id: any): void;
-  addRow(fullRow: any, rowForSupabase: any): void;
-  editRow(fullRow: any, rowForSupabase: any): void;
+  addRow(rowForSupabase: any, optimisticRow: any): void;
+  editRow(rowForSupabase: any, optimisticRow: any): void;
   runRpc(
-    rpcName: string, 
-    dataForSupabase: any, 
+    rpcName: string,
+    dataForSupabase: any,
     optimisticData: any,
     optimisticOperation?: string
   ): void;
@@ -169,7 +168,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //When forceQueryError changes, set fetcherEror
     useEffect(() => {
       if (forceQueryError) {
-        setFetcherError('Simulated query error!');
+        setFetcherError("Simulated query error!");
       } else {
         setFetcherError(null);
       }
@@ -178,29 +177,27 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //When forceMutationError changes, set mutationError
     useEffect(() => {
       if (forceMutationError) {
-        setMutationError('Simulated mutation error!');
+        setMutationError("Simulated mutation error!");
       } else {
         setMutationError(null);
       }
     }, [forceMutationError]);
 
-    //Define functions to add, edit and delete row
+    /*FUNCTIONS TO HANDLE OPTIMISTIC UPDATES*/
 
     //Function that just returns the data unchanged
-    //To use when we aren't running optimistic updates
-    function returnUnchangedData(data: Rows){
+    //To pass in as an optimistic update function when no optimistic update is desired
+    //Effectively disabling optimistic updates for the operation
+    function returnUnchangedData(data: Rows) {
       return data;
     }
-    
-    //Function to replace entire optimistic data
-    const replaceDataOptimistically = useCallback(
-      (optimisticData: Rows) => {
-        return optimisticData;
-      },
-      []
-    );
 
-    //Function for optimistic add of a row
+    //Function to replace entire optimistic data with new data
+    const replaceDataOptimistically = useCallback((optimisticData: Rows) => {
+      return optimisticData;
+    }, []);
+
+    //Function for optimistic add of a row to existing data
     //Adds a new row to the end of the array
     //This will be sorted automatically by useEffect above
     const addRowOptimistically = useCallback(
@@ -211,34 +208,15 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       []
     );
 
-    //Function to actually add row in supabase
-    //Calls addRowOptimistically to return sucessfully added row without refetch,
-    //avoiding double refetch since useSWR will revalidate all rows after mutate is done anyway
-    const addRow = useCallback(
-      async (optimisticRow: Row, rowForSupabase: Row) => {
-        if (generateRandomErrors && Math.random() > 0.5)
-          throw new Error("Randomly generated error on addRow");
-        const supabase = supabaseBrowserClient();
-        const { error } = await supabase.from(tableName).insert(rowForSupabase);
-        if (error) throw error;
-        return addRowOptimistically(data, optimisticRow);
-      },
-      [
-        data,
-        generateRandomErrors,
-        addRowOptimistically,
-        tableName,
-      ]
-    );
-    
-    //Function for optimistic update of row
+    //Function for optimistic edit of a row in existing data
     //Replaces the row by matching uniqueIdentifierField (id)
     const editRowOptimistically = useCallback(
       (data: Rows, optimisticRow: Row) => {
         const newData =
           data?.map((existingRow) => {
             if (
-              optimisticRow[uniqueIdentifierField] === existingRow[uniqueIdentifierField]
+              optimisticRow[uniqueIdentifierField] ===
+              existingRow[uniqueIdentifierField]
             ) {
               return optimisticRow;
             }
@@ -249,56 +227,118 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       [uniqueIdentifierField]
     );
 
+    //Helper function to optimistically delete a row from the data
+    //optimisticData is either an object with the unique identifier field (usually 'id') present in the first level of the object
+    //or a number or string (the actual value of the unique identifier field (id) to filter by)
+    const deleteRowOptimistically = useCallback(
+      (data: Rows, optimisticData: number | string | Row) => {
+        
+        //Extract the unique identifier value from the optimistic data
+        //So we can filter the row out of the data based on this
+        let uniqueIdentifierVal: any;
+
+        if (typeof optimisticData === "object") {
+          //If the unique identifier is an object, look for the unique identifier value in the object
+          //Based on the user-specified unique identifier field
+          //Eg {a: 1, id: 123} would extract 123
+          uniqueIdentifierVal = optimisticData[uniqueIdentifierField];
+        } else {
+          //Otherwise, assume the uniqueIdentifierVal has been directly provided eg value of '123'
+          uniqueIdentifierVal = optimisticData;
+        }
+
+        //If the extracted value for the unique identifier is not a number or string, throw an error
+        if (
+          typeof uniqueIdentifierVal !== "number" &&
+          typeof uniqueIdentifierVal !== "string"
+        ) {
+          throw new Error(`
+            Unable to optimistically delete row. The optimistic data passed was invalid so we could not extract a value for uniquely identifying the row to delete.
+            Optimistic data for delete row must be a number, a string, or an object with the unique identifier field (usually 'id') present in the first level of the object.
+          `);
+        }
+
+        //Filter out the row from the data based on the unique identifier value
+        const newData = data?.filter(
+          (row) => row[uniqueIdentifierField] !== uniqueIdentifierVal
+        );
+        if (!newData) return null;
+
+        return newData;
+      },
+      [uniqueIdentifierField]
+    );
+
+    /*FUNCTIONS TO HANDLE SUPABASE API CALLS*/
+    //All return data via optimistic function to avoid refetch in the mutation
+    //because useSWR will refetch after mutation is finished anyway
+
+    //Function to add a row in supabase
+    const addRow = useCallback(
+      async (
+        rowForSupabase: Row,
+        optimisticRow: Row,
+        optimisticFunc: (data: Rows, optimisticData: any) => Rows
+      ) => {
+        
+        //When specified, generate random errors for Plasmic studio testing
+        if (generateRandomErrors && Math.random() > 0.5)
+          throw new Error("Randomly generated error on addRow");
+
+        //Add the row to supabase
+        const supabase = supabaseBrowserClient();
+        const { error } = await supabase.from(tableName).insert(rowForSupabase);
+        if (error) throw error;
+        return optimisticFunc(data, optimisticRow);
+      },
+      [data, generateRandomErrors, tableName]
+    );
+
     //Function to actually update row in supabase
-    //Calls editRowOptimistically to return sucessfully updated row without refetch, 
-    //avoiding double refetch since useSWR will revalidate all rows after mutate
     const editRow = useCallback(
-      async (optimisticRow: Row, rowForSupabase: Row) => {
+      async (
+        rowForSupabase: Row, 
+        optimisticRow: Row,
+        optimisticFunc: (data: Rows, optimisticData: any) => Rows
+      ) => {
+        //When specified, generate random errors for Plasmic studio testing
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on editRow");
+
+        //Update the row in supabase
         const supabase = supabaseBrowserClient();
         const { error } = await supabase
           .from(tableName)
           .update(rowForSupabase)
           .eq(uniqueIdentifierField, rowForSupabase[uniqueIdentifierField]);
         if (error) throw error;
-        return editRowOptimistically(data, optimisticRow);
+        return optimisticFunc(data, optimisticRow);
       },
       [
         data,
         generateRandomErrors,
-        editRowOptimistically,
         tableName,
         uniqueIdentifierField,
       ]
     );
 
-    const deleteRowOptimistically = useCallback(
-      (data: Rows, uniqueIdentifierVal: number | string) => {
-        console.log('deleteRowOptimistically')
-        console.log(data)
-        console.log(uniqueIdentifierVal)
-        const newData = data?.filter(
-          (row) => row[uniqueIdentifierField] !== uniqueIdentifierVal
-        );
-        if (!newData) return null;
-        return newData;
-      },
-      [uniqueIdentifierField]
-    );
-
+    //Helper function to actually delete a row in Supabase
     const deleteRow = useCallback(
       async (uniqueIdentifierVal: number | string) => {
+
+        //When specified, generate random errors for Plasmic studio testing
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on deleteRow");
+
+        //Delete the row in supabase
         const supabase = supabaseBrowserClient();
         const { error } = await supabase
           .from(tableName)
           .delete()
           .eq(uniqueIdentifierField, uniqueIdentifierVal);
         if (error) throw error;
+
         return deleteRowOptimistically(data, uniqueIdentifierVal);
-        //use-swr will now revalidate data so no need to refetch single one here
       },
       [
         data,
@@ -309,111 +349,132 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       ]
     );
 
-    //Function to run an RPC (database function)
+    //Function to run an RPC (database function) in supabase
     const rpc = useCallback(
       async (
-        rpcName : string, 
-        dataForSupabase: any, 
+        rpcName: string,
+        dataForSupabase: any,
         optimisticData: any,
         optimisticFunc: (data: Rows, optimisticData: any) => Rows
       ) => {
+
+        //When specified, generate random errors for Plasmic studio testing
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on run RPC");
 
+        //Run the RPC
         const supabase = supabaseBrowserClient();
         //Typescript ignore next line because it's a dynamic function call that typescript doesn't know available options for
         // @ts-ignore
-        const { error } = await supabase.rpc(rpcName, dataForSupabase)
+        const { error } = await supabase.rpc(rpcName, dataForSupabase);
         if (error) throw error;
 
-        //Return optimistic data to avoid refetch here
-        //Since useSWR is about to refetch anyway
         return optimisticFunc(data, optimisticData);
       },
-      [
-        data,
-        generateRandomErrors,
-      ]
+      [data, generateRandomErrors]
     );
 
-    //Helper function to choose the correct optimistic data function based on user's settings
+    //Helper function to choose the correct optimistic data function to run
     function chooseOptimisticFunc(
-      optimisticOperation: string | undefined,
+      optimisticOperation: string | null | undefined,
       elementActionName: string
-      ){
-
-        if(optimisticOperation === 'addRow') {
-          return addRowOptimistically;
-        } else if(optimisticOperation === 'editRow') {
-          return editRowOptimistically;
-        } else if(optimisticOperation === 'deleteRow') {
-          return deleteRowOptimistically;
-        } else if(optimisticOperation === 'replaceData') {
-          return replaceDataOptimistically;
-        } else {
-          //None of the above, but something was specified
-          if(optimisticOperation){
-            throw new Error(`
+    ) {
+      if (optimisticOperation === "addRow") {
+        return addRowOptimistically;
+      } else if (optimisticOperation === "editRow") {
+        return editRowOptimistically;
+      } else if (optimisticOperation === "deleteRow") {
+        return deleteRowOptimistically;
+      } else if (optimisticOperation === "replaceData") {
+        return replaceDataOptimistically;
+      } else {
+        //None of the above, but something was specified
+        if (optimisticOperation) {
+          throw new Error(`
               Invalid optimistic operation specified in "${elementActionName}" element action.
               You specified  "${optimisticOperation}" but the allowed values are "addRow", "editRow", "deleteRow", "replaceData" or left blank for no optimistic operation.
           `);
-          }
-          //Nothing specified, function that does not change data (ie no optimistic operation)
-          return returnUnchangedData;
         }
-
+        //Nothing specified, function that does not change data (ie no optimistic operation)
+        return returnUnchangedData;
+      }
     }
 
-    //Define element actions which can be called outside this component in Plasmic Studio
-    //Note the opsimistic updates
+    /*Define element actions which can be called in Plasmic Studio*/
     useImperativeHandle(ref, () => ({
+
+      //Element action to sort rows
       sortRows: async (sortField, sortDirection) => {
         setSortField(sortField);
         setSortDirection(sortDirection);
       },
+
+      //Element action to refetch data from supabase
       refetchRows: async () => {
         mutate().catch((err) => setMutationError(getErrMsg(err)));
       },
+
+      //Element action to delete a row with optional optimistic update & auto-refetch when done
       deleteRow: async (uniqueIdentifierVal) => {
         mutate(deleteRow(uniqueIdentifierVal), {
           populateCache: true,
           optimisticData: deleteRowOptimistically(data, uniqueIdentifierVal),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
-      addRow: async (fullRow, rowForSupabase) => {
-        mutate(addRow(fullRow, rowForSupabase), {
+
+      //Element action to add a row with optional optimistic update & auto-refetch when done
+      addRow: async (rowForSupabase, optimisticRow) => {
+        
+        //Choose the optimistic function based on whether the user has specified optimisticRow
+        //No optimisticRow means the returnUnchangedData func will be used, disabling optimistic update
+        let optimisticOperation = optimisticRow ? "addRow" : null;
+        const optimisticFunc = chooseOptimisticFunc(
+          optimisticOperation,
+          "Add Row"
+        );
+
+        //Run the mutation
+        mutate(addRow(rowForSupabase, optimisticRow, optimisticFunc), {
           populateCache: true,
-          optimisticData: addRowOptimistically(data, fullRow),
+          optimisticData: optimisticFunc(data, optimisticRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
-      editRow: async (fullRow, rowForSupabase) => {
-        mutate(editRow(fullRow, rowForSupabase), {
+
+      //Element action to edit a row with optional optimistic update & auto-refetch when done
+      editRow: async (rowForSupabase, optimisticRow) => {
+
+        //Choose the optimistic function based on whether the user has specified optimisticRow
+        //No optimisticRow means the returnUnchangedData func will be used, disabling optimistic update
+        let optimisticOperation = optimisticRow ? "editRow" : null;
+        const optimisticFunc = chooseOptimisticFunc(
+          optimisticOperation,
+          "Edit Row"
+        );
+
+        //Run the mutation
+        mutate(editRow(optimisticRow, rowForSupabase, optimisticFunc), {
           populateCache: true,
-          optimisticData: editRowOptimistically(data, fullRow),
+          optimisticData: optimisticFunc(data, optimisticRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
       },
-      //Element action to run a supabase RPC (database function)
+
+      //Element action to run a supabase RPC (database function) with optimistic operation (addRow, editRow, deleteRow, replaceData or none)
+      //and auto-refetch when done
       runRpc: async (
-        rpcName, 
+        rpcName,
         dataForSupabase,
         optimisticData,
         optimisticOperation
       ) => {
-
         //Choose the correct optimistic function based on user's settings in the element action in studio
         const optimisticFunc = chooseOptimisticFunc(
           optimisticOperation,
-          'Run RPC'//The name of the element action for error messages
+          "Run RPC" //The name of the element action for error messages
         );
 
         //Run the operation with optimistically updated data
-        //If no optimistic operation is indicated, the data will be returned unchanged via returnUnchangedData function
-        mutate(rpc(
-          rpcName, 
-          dataForSupabase, 
-          optimisticData,
-          optimisticFunc
-        ), {
+        //if optimisticOperation is not specified, the optimisticFunc will be returnUnchangedData, disabling optimistic update
+        mutate(rpc(rpcName, dataForSupabase, optimisticData, optimisticFunc), {
           populateCache: true,
           optimisticData: optimisticFunc(data, optimisticData),
         }).catch((err) => setMutationError(getErrMsg(err)));
@@ -443,8 +504,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           }}
         >
           {/*Loading state - validating before we initially have data*/}
-          {((isValidating && !fetchedData) || forceLoading) &&
-            loading}
+          {((isValidating && !fetchedData) || forceLoading) && loading}
 
           {/*Validating state - any time we are running mutate() to revalidate cache*/}
           {(isValidating || forceValidating) && validating}
@@ -453,10 +513,14 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           {(!data || data.length === 0 || forceNoData) && noData}
 
           {/*Error state - error is currently there according to SWR*/}
-          {(fetcherError && !hideDefaultErrors) && <p>Error from fetching records: {fetcherError}</p>}
+          {fetcherError && !hideDefaultErrors && (
+            <p>Error from fetching records: {fetcherError}</p>
+          )}
 
           {/*Error state - error is currently there according to mutation*/}
-          {(mutationError && !hideDefaultErrors) && <p>Error from mutation: {mutationError}</p>}
+          {mutationError && !hideDefaultErrors && (
+            <p>Error from mutation: {mutationError}</p>
+          )}
 
           {/*Render children with data provider - when we have data*/}
           {(data || !tableName) && children}

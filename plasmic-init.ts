@@ -198,20 +198,20 @@ PLASMIC.registerComponent(SupabaseProvider, {
     },
     deleteRow: {
       description: "delete a row by ID",
-      argTypes: [{ name: "ID", type: "string" }],
+      argTypes: [{ name: "ID", type: "string", displayName: "Id / unique identifier of the row to delete" }],
     },
     addRow: {
       description: "add a row",
       argTypes: [
-        { name: "rowForSupabase", type: "object" },
-        { name: "fullRow", type: "object" },
+        { name: "rowForSupabase", type: "object", displayName: "Row to send to Supabase" },
+        { name: "optimisticRow", type: "object", displayName: "Optimistic new row (optional)"},
       ],
     },
     editRow: {
       description: "edit row",
       argTypes: [
-        { name: "rowForSupabase", type: "object"},
-        { name: "fullRow", type: "object" },
+        { name: "rowForSupabase", type: "object", displayName: "Row to send to Supabase"},
+        { name: "optimisticRow", type: "object", displayName: "Optimistic edited row (optional)"},
       ],
     },
     runRpc: {
@@ -219,7 +219,7 @@ PLASMIC.registerComponent(SupabaseProvider, {
       argTypes: [
         { name: "rpcName", displayName: 'Name of the RPC', type: "string" },
         { name: "dataForSupabase", displayName: 'Data for Supabase API call', type: "object"},
-        { name: "optimisticData", displayName: 'Optimistic data (optional)', type: 'object'},
+        { name: "optimisticData", displayName: 'Data for optimistic operation (optional)', type: 'object'},
         { 
           //Choose the optimistic operation to perform
           //Done in plain text since "choice" type doesn't work in refActions
