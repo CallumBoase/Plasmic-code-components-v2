@@ -217,13 +217,16 @@ PLASMIC.registerComponent(SupabaseProvider, {
     runRpc: {
       description: 'RPC for add row',
       argTypes: [
-        { name: "rpcName", type: "string" },
-        { name: "dataForSupabase", type: "object"},
-        { name: "optimisticallyAddRow", type: "boolean" },
-        { name: "optimisticallyEditRow", type: "boolean" },
-        { name: "optimisticallyDeleteRow", type: "boolean" },
-        { name: "optimisticallyReplaceData", type: "boolean" },
-        { name: "optimisticData", type: "object" },
+        { name: "rpcName", displayName: 'Name of the RPC', type: "string" },
+        { name: "dataForSupabase", displayName: 'Data for Supabase API call', type: "object"},
+        { name: "optimisticData", displayName: 'Optimistic data (optional)', type: 'object'},
+        { 
+          //Choose the optimistic operation to perform
+          //Done in plain text since "choice" type doesn't work in refActions
+          name: "optimisticOperation", 
+          displayName: 'Optimistic operation (addRow / editRow / deleteRow / replaceData) (optional)', 
+          type: "string" 
+        },
       ]
     },
     clearError: {

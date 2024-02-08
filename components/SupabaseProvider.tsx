@@ -33,11 +33,8 @@ interface Actions {
   runRpc(
     rpcName: string, 
     dataForSupabase: any, 
-    optimisticallyAddRow: boolean, 
-    optimisticallyEditRow: boolean, 
-    optimisticallyDeleteRow: boolean,
-    optimisticallyReplaceData: boolean,
-    optimisticData: any
+    optimisticData: any,
+    optimisticOperation?: string
   ): void;
 }
 
@@ -191,14 +188,14 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     //Function that just returns the data unchanged
     //To use when we aren't running optimistic updates
-    function returnUnchangedData(data: Rows, optimisticData: any){
+    function returnUnchangedData(data: Rows){
       return data;
     }
     
     //Function to replace entire optimistic data
     const replaceDataOptimistically = useCallback(
-      (newData: Rows) => {
-        return newData;
+      (optimisticData: Rows) => {
+        return optimisticData;
       },
       []
     );
@@ -207,8 +204,8 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Adds a new row to the end of the array
     //This will be sorted automatically by useEffect above
     const addRowOptimistically = useCallback(
-      (data: Rows | null, fullRow: Row) => {
-        const newData = [...(data || []), fullRow];
+      (data: Rows | null, optimisticRow: Row) => {
+        const newData = [...(data || []), optimisticRow];
         return newData;
       },
       []
@@ -218,13 +215,13 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Calls addRowOptimistically to return sucessfully added row without refetch,
     //avoiding double refetch since useSWR will revalidate all rows after mutate is done anyway
     const addRow = useCallback(
-      async (fullRow: Row, rowForSupabase: Row) => {
+      async (optimisticRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on addRow");
         const supabase = supabaseBrowserClient();
         const { error } = await supabase.from(tableName).insert(rowForSupabase);
         if (error) throw error;
-        return addRowOptimistically(data, fullRow);
+        return addRowOptimistically(data, optimisticRow);
       },
       [
         data,
@@ -237,13 +234,13 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Function for optimistic update of row
     //Replaces the row by matching uniqueIdentifierField (id)
     const editRowOptimistically = useCallback(
-      (data: Rows, fullRow: Row) => {
+      (data: Rows, optimisticRow: Row) => {
         const newData =
           data?.map((existingRow) => {
             if (
-              fullRow[uniqueIdentifierField] === existingRow[uniqueIdentifierField]
+              optimisticRow[uniqueIdentifierField] === existingRow[uniqueIdentifierField]
             ) {
-              return fullRow;
+              return optimisticRow;
             }
             return existingRow;
           }) || [];
@@ -256,7 +253,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Calls editRowOptimistically to return sucessfully updated row without refetch, 
     //avoiding double refetch since useSWR will revalidate all rows after mutate
     const editRow = useCallback(
-      async (fullRow: Row, rowForSupabase: Row) => {
+      async (optimisticRow: Row, rowForSupabase: Row) => {
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on editRow");
         const supabase = supabaseBrowserClient();
@@ -265,7 +262,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           .update(rowForSupabase)
           .eq(uniqueIdentifierField, rowForSupabase[uniqueIdentifierField]);
         if (error) throw error;
-        return editRowOptimistically(data, fullRow);
+        return editRowOptimistically(data, optimisticRow);
       },
       [
         data,
@@ -278,6 +275,9 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     const deleteRowOptimistically = useCallback(
       (data: Rows, uniqueIdentifierVal: number | string) => {
+        console.log('deleteRowOptimistically')
+        console.log(data)
+        console.log(uniqueIdentifierVal)
         const newData = data?.filter(
           (row) => row[uniqueIdentifierField] !== uniqueIdentifierVal
         );
@@ -321,7 +321,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           throw new Error("Randomly generated error on run RPC");
 
         const supabase = supabaseBrowserClient();
-        //Typescript ignore next line temp
+        //Typescript ignore next line because it's a dynamic function call that typescript doesn't know available options for
         // @ts-ignore
         const { error } = await supabase.rpc(rpcName, dataForSupabase)
         if (error) throw error;
@@ -338,39 +338,30 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
     //Helper function to choose the correct optimistic data function based on user's settings
     function chooseOptimisticFunc(
-      shouldOptimisticallyAddRow: boolean, 
-      shouldOptimisticallyEditRow: boolean, 
-      shouldOptimisticallyDeleteRow: boolean, 
-      shouldOptimisticallyReplaceData: boolean,
+      optimisticOperation: string | undefined,
       elementActionName: string
       ){
 
-        const optimisticSettings = [
-          shouldOptimisticallyAddRow,
-          shouldOptimisticallyEditRow,
-          shouldOptimisticallyDeleteRow,
-          shouldOptimisticallyReplaceData
-        ];
-
-        if(!zeroOrExactlyOneTrue(optimisticSettings)){
-          throw new Error(`
-            Error choosing in element action: ${elementActionName}. 
-            You have enabled more than one of the optimistic operation toggles: ${optimisticSettings.map(setting => setting ? 'true' : 'false').join(', ')}.
-            Please set only one of the toggles to true (or disable all of them).
-          `);
-        }
-
-        if(shouldOptimisticallyAddRow){
+        if(optimisticOperation === 'addRow') {
           return addRowOptimistically;
-        } else if(shouldOptimisticallyEditRow){
+        } else if(optimisticOperation === 'editRow') {
           return editRowOptimistically;
-        } else if(shouldOptimisticallyDeleteRow){
+        } else if(optimisticOperation === 'deleteRow') {
           return deleteRowOptimistically;
-        } else if(shouldOptimisticallyReplaceData){
+        } else if(optimisticOperation === 'replaceData') {
           return replaceDataOptimistically;
         } else {
+          //None of the above, but something was specified
+          if(optimisticOperation){
+            throw new Error(`
+              Invalid optimistic operation specified in "${elementActionName}" element action.
+              You specified  "${optimisticOperation}" but the allowed values are "addRow", "editRow", "deleteRow", "replaceData" or left blank for no optimistic operation.
+          `);
+          }
+          //Nothing specified, function that does not change data (ie no optimistic operation)
           return returnUnchangedData;
         }
+
     }
 
     //Define element actions which can be called outside this component in Plasmic Studio
@@ -405,26 +396,13 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
       runRpc: async (
         rpcName, 
         dataForSupabase,
-        optimisticallyAddRow,
-        optimisticallyEditRow,
-        optimisticallyDeleteRow,
-        optimisticallyReplaceData,
-        optimisticData
+        optimisticData,
+        optimisticOperation
       ) => {
-
-        console.log('run RPC')
-        console.log(optimisticallyAddRow)
-        console.log(optimisticallyEditRow)
-        console.log(optimisticallyDeleteRow)
-        console.log(optimisticallyReplaceData)
-        console.log(optimisticData)
 
         //Choose the correct optimistic function based on user's settings in the element action in studio
         const optimisticFunc = chooseOptimisticFunc(
-          optimisticallyAddRow,
-          optimisticallyEditRow,
-          optimisticallyDeleteRow,
-          optimisticallyReplaceData,
+          optimisticOperation,
           'Run RPC'//The name of the element action for error messages
         );
 
