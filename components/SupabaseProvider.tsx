@@ -193,7 +193,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     }
 
     //Function to replace entire optimistic data with new data
-    const replaceDataOptimistically = useCallback((optimisticData: Rows) => {
+    const replaceDataOptimistically = useCallback((_data: Rows, optimisticData: Rows) => {
       return optimisticData;
     }, []);
 
@@ -301,6 +301,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         optimisticRow: Row,
         optimisticFunc: (data: Rows, optimisticData: any) => Rows
       ) => {
+
         //When specified, generate random errors for Plasmic studio testing
         if (generateRandomErrors && Math.random() > 0.5)
           throw new Error("Randomly generated error on editRow");
@@ -395,6 +396,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
               You specified  "${optimisticOperation}" but the allowed values are "addRow", "editRow", "deleteRow", "replaceData" or left blank for no optimistic operation.
           `);
         }
+
         //Nothing specified, function that does not change data (ie no optimistic operation)
         return returnUnchangedData;
       }
@@ -416,6 +418,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
       //Element action to delete a row with optional optimistic update & auto-refetch when done
       deleteRow: async (uniqueIdentifierVal) => {
+
         mutate(deleteRow(uniqueIdentifierVal), {
           populateCache: true,
           optimisticData: deleteRowOptimistically(data, uniqueIdentifierVal),
@@ -452,7 +455,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         );
 
         //Run the mutation
-        mutate(editRow(optimisticRow, rowForSupabase, optimisticFunc), {
+        mutate(editRow(rowForSupabase, optimisticRow, optimisticFunc), {
           populateCache: true,
           optimisticData: optimisticFunc(data, optimisticRow),
         }).catch((err) => setMutationError(getErrMsg(err)));
@@ -466,6 +469,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         optimisticData,
         optimisticOperation
       ) => {
+
         //Choose the correct optimistic function based on user's settings in the element action in studio
         const optimisticFunc = chooseOptimisticFunc(
           optimisticOperation,
