@@ -35,9 +35,6 @@ PLASMIC.registerGlobalContext(SupabaseUser, {
   name: "SupabaseUserGlobalContext",
   props: {
     redirectOnLoginSuccess: "string",
-    simulateLoggedInUser: "boolean",
-    email: "string",
-    password: "string",
   },
   providesData: true,
   globalActions: {
@@ -126,19 +123,6 @@ PLASMIC.registerComponent(SupabaseProvider, {
       advanced: true,
       description: 'Hide default errors so you can use the $ctx values yourself to show custom error messages'
     },
-    placeholdersForOptimisticAdd: {
-      type: "array",
-      advanced: true,
-      itemType: {
-        type: "object",
-        fields: {
-          fieldName: "string",
-          value: "string",
-        },
-      },
-      description:
-        "Extra values to create your optimistic row, that are not in the add row form",
-    },
     forceLoading: {
       type: "boolean",
       advanced: true,
@@ -214,15 +198,36 @@ PLASMIC.registerComponent(SupabaseProvider, {
     },
     deleteRow: {
       description: "delete a row by ID",
-      argTypes: [{ name: "ID", type: "string" }],
+      argTypes: [{ name: "ID", type: "string", displayName: "Id / unique identifier of the row to delete" }],
     },
     addRow: {
       description: "add a row",
-      argTypes: [{ name: "row", type: "object" }],
+      argTypes: [
+        { name: "rowForSupabase", type: "object", displayName: "Row to send to Supabase" },
+        { name: "optimisticRow", type: "object", displayName: "Optimistic new row (optional)"},
+      ],
     },
     editRow: {
       description: "edit row",
-      argTypes: [{ name: "row", type: "object" }],
+      argTypes: [
+        { name: "rowForSupabase", type: "object", displayName: "Row to send to Supabase"},
+        { name: "optimisticRow", type: "object", displayName: "Optimistic edited row (optional)"},
+      ],
+    },
+    runRpc: {
+      description: 'RPC for add row',
+      argTypes: [
+        { name: "rpcName", displayName: 'Name of the RPC', type: "string" },
+        { name: "dataForSupabase", displayName: 'Data for Supabase API call', type: "object"},
+        { name: "optimisticData", displayName: 'Data for optimistic operation (optional)', type: 'object'},
+        { 
+          //Choose the optimistic operation to perform
+          //Done in plain text since "choice" type doesn't work in refActions
+          name: "optimisticOperation", 
+          displayName: 'Optimistic operation (addRow / editRow / deleteRow / replaceData) (optional)', 
+          type: "string" 
+        },
+      ]
     },
     clearError: {
       description: "clear the latest error message",
