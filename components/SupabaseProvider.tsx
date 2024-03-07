@@ -7,7 +7,7 @@ import {
 } from "react";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
-import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
+import supabaseBrowserClient from "@/utils/supabase/component";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
 import buildSupabaseQueryWithDynamicFilters, {
   type Filter,

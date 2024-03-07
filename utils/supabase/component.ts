@@ -1,6 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr";
-// import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import { createBrowserClient } from '@supabase/ssr'
 import { parse, serialize } from 'cookie';
 
 //Helper function to check if setting cookies works
@@ -8,12 +6,14 @@ import { parse, serialize } from 'cookie';
 //In plasmic studio / preview setting cookies does not error, but the value does not stick
 //If cookies won't work, we'll instead save session info into local storage
 function cookiesAvailable() {
-  document.cookie = 'testCookie=testValue';
+  document.cookie = 'studioEnv=false';
   const cookies = parse(document.cookie);
-  const testCookieRefetched = cookies['testCookie'];
+  const testCookieRefetched = cookies['studioEnv'];
 
   if(testCookieRefetched) {
     //Cookie setting works. We're not in plasmic studio
+    //Delete the unused cookie
+    document.cookie = "studioEnv=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
     return true;
   } else {
     //Cookie setting doesn't work. We're in plasmic studio
@@ -22,9 +22,9 @@ function cookiesAvailable() {
 
 }
 
-const supabaseBrowserClient = () => {
+export default function createClient() {
   //Create the supabase client like normal
-  const supabase = createBrowserClient<Database>(
+  const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -35,7 +35,7 @@ const supabaseBrowserClient = () => {
       cookies: {
 
         //Override the default behaviour of how supabase gets session data of logged in user
-        get: (key: string) => {
+        get: (key) => {
 
           
           if(cookiesAvailable()) {
@@ -54,7 +54,7 @@ const supabaseBrowserClient = () => {
         },
 
         //Override the default behaviour of how supabase saves session data of logged in user
-        set: (key: string, value: string, options) => {
+        set: (key, value, options) => {
           
           if(cookiesAvailable()) {
             //Cookies are available, so we are running the app normally, not in plasmic studio / plasmic preview
@@ -74,7 +74,7 @@ const supabaseBrowserClient = () => {
 
         //Override the default behaviour of how supabase removes session data of logged in user
         //Remove session data from both cookies and localStorage (if present)
-        remove: (key: string, options) => {
+        remove: (key, options) => {
           //Remove the session data from cookies (if present) (default behaviour)
           document.cookie = serialize(key, '', options);
           //Remove the session data from localStorage (if present)
@@ -87,5 +87,3 @@ const supabaseBrowserClient = () => {
   return supabase;
 
 };
-
-export default supabaseBrowserClient;

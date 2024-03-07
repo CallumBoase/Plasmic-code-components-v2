@@ -2,7 +2,7 @@ import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { GlobalActionsProvider } from "@plasmicapp/host";
 import { useState, useEffect, useMemo } from "react";
-import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
+import supabaseBrowserClient from "@/utils/supabase/component";
 import getErrMsg from "@/utils/getErrMsg";
 import type { AuthTokenResponse } from "@supabase/supabase-js";
 

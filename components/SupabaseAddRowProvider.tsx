@@ -5,7 +5,7 @@ import {
   useCallback
 } from "react";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
-import supabaseBrowserClient from "@/utils/supabaseBrowserClient";
+import supabaseBrowserClient from "@/utils/supabase/component";
 import getErrMsg from "@/utils/getErrMsg";
 import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
 
