@@ -2,7 +2,7 @@ import { useSafeRouter as useRouter } from "@/utils/useSafeRouter";
 import { DataProvider } from "@plasmicapp/loader-nextjs";
 import { GlobalActionsProvider } from "@plasmicapp/host";
 import { useState, useEffect, useMemo } from "react";
-import supabaseBrowserClient from "@/utils/supabase/component";
+import createClient from '@/utils/supabase/component'
 import getErrMsg from "@/utils/getErrMsg";
 import type { AuthTokenResponse } from "@supabase/supabase-js";
 
@@ -13,14 +13,14 @@ interface DataProviderData {
 
 interface SupabaseUserComponentProps {
   children: React.ReactNode;
-  redirectOnLoginSuccess?: string;
+  defaultRedirectOnLoginSuccess?: string;
 }
 
-export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserComponentProps) => {
+export const SupabaseUser = ({children, defaultRedirectOnLoginSuccess}: SupabaseUserComponentProps) => {
 
   //Nextjs router
   const router = useRouter();
- 
+  
   //Setup state
   const [user, setUser] = useState<AuthTokenResponse["data"]["user"] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
   //Helper function to get the user and save to state
   async function getUserAndSaveToState() {
 
-    const supabase = supabaseBrowserClient();
+    const supabase = createClient();
 
     //Get the session from stored credentials (not from the server)
     let { data: getSessionData, error: getSessionError } = await supabase.auth.getSession();
@@ -53,7 +53,6 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
 
   }
 
-
   //On initial load, set the session to state
   useEffect(() => {
     getUserAndSaveToState();
@@ -63,9 +62,9 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
   const actions = useMemo(
     () => ({
       //Login
-      login: async (email: string, password: string) => {
+      login: async (email: string, password: string, successRedirect: string) => {
         try {
-          const supabase = supabaseBrowserClient();
+          const supabase = createClient();
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -81,7 +80,7 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
           setError(null);
 
           //Redirect if needed
-          if(redirectOnLoginSuccess && router) router.push(redirectOnLoginSuccess);
+          if((successRedirect ?? defaultRedirectOnLoginSuccess) && router) router.push(successRedirect ?? defaultRedirectOnLoginSuccess);
           
           return;
 
@@ -91,9 +90,9 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
         }
       },
       //Logout
-      logout: async () => {
+      logout: async (successRedirect: string) => {
         try {
-          const supabase = supabaseBrowserClient();
+          const supabase = createClient();
           const { error } = await supabase.auth.signOut();
           if (error) {
             throw error;
@@ -104,14 +103,71 @@ export const SupabaseUser = ({children, redirectOnLoginSuccess}: SupabaseUserCom
           //Reset errors if present
           setError(null);
 
+          //Redirect if needed
+          if((successRedirect) && router) router.push(successRedirect);
+
           return;
         } catch (e) {
           setError(getErrMsg(e))
           return;
         }
       },
+      //signUp
+      signup: async (email: string, password: string, successRedirect: string) => {
+        try {
+          const supabase = await createClient();
+          const { error } = await supabase.auth.signUp({ 
+            email, 
+            password 
+          });
+          if (error) throw error;
+          await getUserAndSaveToState();
+
+          setError(null);
+
+          //Redirect if needed
+          if((successRedirect) && router) router.push(successRedirect);
+          
+          // There is potential to include a signup redirect here that would redirect to a page provided in an action parameter
+          return;
+        } catch (e) {
+          setError(getErrMsg(e))
+          return;
+        }
+      },
+      //resetPassword
+      resetPasswordForEmail: async (email: string) => {
+        try {
+          const supabase = await createClient();
+          const { error } = await supabase.auth.resetPasswordForEmail(
+            email // this auth function takes its parameters slightly differently. It doesn't accept named parameters like the other supabase.auth functions.
+          );
+          if (error) throw error;
+          return;
+        } catch (e) {
+          setError(getErrMsg(e))
+          return;
+        }
+      },
+      // Update User Password
+        // This action/function assumes the user has an active session (either by having "Logged in" or clicking the password reset confirmation from a recovery email)
+        // Currently this can be used by any authenticated user to change their password without having to re-enter their exisiting password
+        // There is likely a more robust way to perform this - 
+        // i.e. requiring an expiring token to be passed in the /changepassword URL, validating the token against the supabase DB, only displaying the page if the toekn was valid, otherwise redirect
+      updateUserPassword: async (password: string) => {
+        try {
+          const supabase = await createClient();
+          const { error } = await supabase.auth.updateUser({
+            password: password
+          });
+          if (error) throw error;
+        } catch (e) {
+          setError(getErrMsg(e))
+          return;
+        }
+      },
     }),
-    [redirectOnLoginSuccess, router]
+    [defaultRedirectOnLoginSuccess, router]
   );
   
   //Setup the data that will be passed as global context to Plasmic studio
