@@ -5,9 +5,9 @@ import {
   useImperativeHandle,
   useCallback,
 } from "react";
-import { DataProvider } from "@plasmicapp/loader-nextjs";
+import { DataProvider } from "@plasmicapp/react-web/lib/host";
 import useSWR from "swr";
-import supabaseBrowserClient from "@/utils/supabase/component";
+import createClient from "@/utils/supabase/component";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
 import buildSupabaseQueryWithDynamicFilters, {
   type Filter,
@@ -113,7 +113,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
     //Function that can be called to fetch data
     const fetchData: FetchData = useCallback(async () => {
       //New client
-      const supabase = supabaseBrowserClient();
+      const supabase = createClient();
 
       //Build the query with dynamic filters that were passed as props to the component
       const supabaseQuery = buildSupabaseQueryWithDynamicFilters({
@@ -286,7 +286,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           throw new Error("Randomly generated error on addRow");
 
         //Add the row to supabase
-        const supabase = supabaseBrowserClient();
+        const supabase = createClient();
         const { error } = await supabase.from(tableName).insert(rowForSupabase);
         if (error) throw error;
         return optimisticFunc(data, optimisticRow);
@@ -307,7 +307,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           throw new Error("Randomly generated error on editRow");
 
         //Update the row in supabase
-        const supabase = supabaseBrowserClient();
+        const supabase = createClient();
         const { error } = await supabase
           .from(tableName)
           .update(rowForSupabase)
@@ -332,7 +332,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           throw new Error("Randomly generated error on deleteRow");
 
         //Delete the row in supabase
-        const supabase = supabaseBrowserClient();
+        const supabase = createClient();
         const { error } = await supabase
           .from(tableName)
           .delete()
@@ -364,7 +364,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
           throw new Error("Randomly generated error on run RPC");
 
         //Run the RPC
-        const supabase = supabaseBrowserClient();
+        const supabase = createClient();
         //Typescript ignore next line because it's a dynamic function call that typescript doesn't know available options for
         // @ts-ignore
         const { error } = await supabase.rpc(rpcName, dataForSupabase);
@@ -407,18 +407,20 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
       //Element action to sort rows
       sortRows: async (sortField, sortDirection) => {
+        setMutationError(null)
         setSortField(sortField);
         setSortDirection(sortDirection);
       },
 
       //Element action to refetch data from supabase
       refetchRows: async () => {
+        setMutationError(null)
         mutate().catch((err) => setMutationError(getErrMsg(err)));
       },
 
       //Element action to delete a row with optional optimistic update & auto-refetch when done
       deleteRow: async (uniqueIdentifierVal) => {
-
+        setMutationError(null)
         mutate(deleteRow(uniqueIdentifierVal), {
           populateCache: true,
           optimisticData: deleteRowOptimistically(data, uniqueIdentifierVal),
@@ -427,7 +429,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
       //Element action to add a row with optional optimistic update & auto-refetch when done
       addRow: async (rowForSupabase, optimisticRow) => {
-        
+        setMutationError(null)
         //Choose the optimistic function based on whether the user has specified optimisticRow
         //No optimisticRow means the returnUnchangedData func will be used, disabling optimistic update
         let optimisticOperation = optimisticRow ? "addRow" : null;
@@ -445,7 +447,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
 
       //Element action to edit a row with optional optimistic update & auto-refetch when done
       editRow: async (rowForSupabase, optimisticRow) => {
-
+        setMutationError(null)
         //Choose the optimistic function based on whether the user has specified optimisticRow
         //No optimisticRow means the returnUnchangedData func will be used, disabling optimistic update
         let optimisticOperation = optimisticRow ? "editRow" : null;
@@ -469,6 +471,7 @@ export const SupabaseProvider = forwardRef<Actions, SupabaseProviderProps>(
         optimisticData,
         optimisticOperation
       ) => {
+        setMutationError(null)
 
         //Choose the correct optimistic function based on user's settings in the element action in studio
         const optimisticFunc = chooseOptimisticFunc(
