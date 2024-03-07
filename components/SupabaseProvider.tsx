@@ -5,7 +5,7 @@ import {
   useImperativeHandle,
   useCallback,
 } from "react";
-import { DataProvider } from "@plasmicapp/react-web/lib/host";
+import { DataProvider } from "@plasmicapp/loader-nextjs";
 import useSWR from "swr";
 import createClient from "@/utils/supabase/component";
 import getSortFunc, { type SortDirection } from "@/utils/getSortFunc";
