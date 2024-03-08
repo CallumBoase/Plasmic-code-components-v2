@@ -370,7 +370,9 @@ PLASMIC.registerComponent(SupabaseProvider, {
 });
 
 PLASMIC.registerComponent(SupabaseStorageProvider, {
-  name: "SupabaseStorageProvider",
+  name: "Supabase Storage Provider",
+  //typescript ignore next line due to Plasmic issue with refActions -> argType of "array"
+  // @ts-ignore
   providesData: true,
   props: {
     children: {
@@ -455,4 +457,4 @@ PLASMIC.registerComponent(SupabaseStorageProvider, {
       argTypes: []
     },
   },
-})
+});
