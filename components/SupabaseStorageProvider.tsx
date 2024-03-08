@@ -365,7 +365,7 @@ export const SupabaseStorageProvider = forwardRef<
   // DEFINE ELEMENT ACTIONS THAT CALL THE API FUNCTIONS
   useImperativeHandle(ref, () => ({
 
-      uploadFile: async (path, base64FileData, contentType, upsert) => {
+      uploadFile: (path, base64FileData, contentType, upsert) => {
         setIsLoading(true);
         setData(null);
         setError(null);
@@ -376,7 +376,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      uploadManyFiles: async (
+      uploadManyFiles: (
         fileDataList,
         folder,
         upsert,
@@ -484,7 +484,7 @@ export const SupabaseStorageProvider = forwardRef<
   return (
     <div className={className}>
       <DataProvider
-        name={instanceName}
+        name={instanceName || "SupabaseStorageProvider"}
         data={{
           data: data,
           error: error,
