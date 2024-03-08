@@ -31,36 +31,36 @@ interface SupabaseMoveFileResult {
 type SupabaseDeleteFilesResult = SupabaseStorageFileObject[];
 
 interface Actions {
-  uploadFile: (
+  uploadFile(
     path: string,
     base64FileData: string,
     contentType: string,
     upsert: boolean
-  ) => Promise<any>;
-  uploadManyFiles: (
+  ): void;
+  uploadManyFiles(
     fileDataList: FileData[],
     folder: string,
     upsert: boolean,
     replaceFilename: boolean
-  ) => Promise<any>;
-  downloadFile: (path: string, optimization: boolean) => Promise<any>;
-  replaceFile: (
+  ): void;
+  downloadFile(path: string, optimization: boolean): void;
+  replaceFile(
     path: string,
     base64FileData: string,
     contentType: string,
     upsert: boolean
-  ) => Promise<any>;
-  moveFile: (fromPath: string, toPath: string) => Promise<any>;
-  copyFile: (fromPath: string, toPath: string) => Promise<any>;
-  deleteFiles: (paths: string[]) => Promise<any>;
-  listFiles: (
+  ): void;
+  moveFile(fromPath: string, toPath: string): void;
+  copyFile(fromPath: string, toPath: string): void;
+  deleteFiles(paths: string[]): void;
+  listFiles(
     path: string,
     limit: number,
     offset: number,
     sortBy: string,
     search: string
-  ) => Promise<any>;
-  emptyBucket: () => Promise<any>;
+  ): void;
+  emptyBucket(): void;
 }
 
 interface UploadManyResult {
@@ -363,8 +363,8 @@ export const SupabaseStorageProvider = forwardRef<
   }, [bucketName]);
 
   // DEFINE ELEMENT ACTIONS THAT CALL THE API FUNCTIONS
-  useImperativeHandle(ref, () => {
-    return {
+  useImperativeHandle(ref, () => ({
+
       uploadFile: async (path, base64FileData, contentType, upsert) => {
         setIsLoading(true);
         setData(null);
@@ -392,7 +392,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      downloadFile: async (
+      downloadFile: (
         path,
         optimization
         //These props are deliberately ommitted because they are in beta and/or only supported by supabase pro/enterprise plan
@@ -413,7 +413,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      replaceFile: async (path, base64FileData, contentType, upsert) => {
+      replaceFile: (path, base64FileData, contentType, upsert) => {
         setIsLoading(true);
         setData(null);
         setError(null);
@@ -424,7 +424,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      moveFile: async (fromPath, toPath) => {
+      moveFile: (fromPath, toPath) => {
         setIsLoading(true);
         setData(null);
         setError(null);
@@ -435,7 +435,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      copyFile: async (fromPath, toPath) => {
+      copyFile: (fromPath, toPath) => {
         setIsLoading(true);
         setData(null);
         setError(null);
@@ -444,10 +444,9 @@ export const SupabaseStorageProvider = forwardRef<
           .finally(() => {
             setIsLoading(false);
           });
-        return { data, error };
       },
 
-      deleteFiles: async (paths) => {
+      deleteFiles: (paths) => {
         setIsLoading(true);
         setData(null);
         setError(null);
@@ -458,7 +457,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      listFiles: async (path, limit, offset, sortBy, search) => {
+      listFiles: (path, limit, offset, sortBy, search) => {
         console.log(limit);
         setIsLoading(true);
         setData(null);
@@ -470,7 +469,7 @@ export const SupabaseStorageProvider = forwardRef<
           });
       },
 
-      emptyBucket: async () => {
+      emptyBucket: () => {
         setIsLoading(true);
         setData(null);
         setError(null);
@@ -480,8 +479,7 @@ export const SupabaseStorageProvider = forwardRef<
             setIsLoading(false);
           });
       },
-    };
-  });
+  }));
 
   return (
     <div className={className}>
