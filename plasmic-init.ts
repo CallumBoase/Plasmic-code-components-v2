@@ -120,7 +120,7 @@ PLASMIC.registerComponent(SupabaseAddRowProvider, {
 });
 
 PLASMIC.registerComponent(SupabaseProvider, {
-  name: "Supabase Data Provider",
+  name: "SupabaseProvider",
   providesData: true,
   props: {
     queryName: {
@@ -370,7 +370,7 @@ PLASMIC.registerComponent(SupabaseProvider, {
 });
 
 PLASMIC.registerComponent(SupabaseStorageProvider, {
-  name: "Supabase Storage Provider",
+  name: "SupabaseStorageProvider",
   //typescript ignore next line due to Plasmic issue with refActions -> argType of "array"
   // @ts-ignore
   providesData: true,
