@@ -5,6 +5,7 @@ import { SupabaseUser } from "./components/SupabaseUserProvider";
 import { SupabaseProvider } from "./components/SupabaseProvider";
 import { SupabaseAddRowProvider } from "./components/SupabaseAddRowProvider";
 import { SupabaseStorageProvider } from "./components/SupabaseStorageProvider";
+import { PromiseDemo } from "./components/PromisesDemo";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -30,6 +31,25 @@ export const PLASMIC = initPlasmicLoader({
 // https://docs.plasmic.app/learn/app-hosting/#set-a-plasmic-project-to-use-your-app-host
 
 // PLASMIC.registerComponent(...);
+
+PLASMIC.registerComponent(PromiseDemo, {
+  name: "PromiseDemo",
+  props: {},
+  refActions: {
+    nonPromise: {
+      description: "nonPromise",
+      argTypes: [],
+    },
+    promise: {
+      description: "promise",
+      argTypes: [],
+    },
+    whatWeADo: {
+      description: "whatWeADo",
+      argTypes: [],
+    },
+  },
+});
 
 PLASMIC.registerGlobalContext(SupabaseUser, {
   name: "SupabaseUserGlobalContext",
