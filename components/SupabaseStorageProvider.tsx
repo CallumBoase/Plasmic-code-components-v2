@@ -365,6 +365,21 @@ export const SupabaseStorageProvider = forwardRef<
   // DEFINE ELEMENT ACTIONS THAT CALL THE API FUNCTIONS
   useImperativeHandle(ref, () => ({
 
+      getSignedUrl: async (path: string, expiresIn?: number) => {
+        setIsLoading(true);
+        setData(null);
+        setError(null);
+        const supabase = createClient(); // establish the Supabase client
+        const { data, error } = await supabase.storage.from(bucketName).createSignedUrl(path, expiresIn ? expiresIn : 3600);
+        if (error) {
+          setError(getErrMsg(error));
+        } else {
+          setData(data);
+        }
+        return;
+        
+      },
+
       uploadFile: (path, base64FileData, contentType, upsert) => {
         setIsLoading(true);
         setData(null);
