@@ -21,8 +21,7 @@ type SimulatedApiCall = {
 
 type SomeApiCall = () => Promise<string>;
 
-//Helper function to run an API call and wait for return value
-//Or run it immediately and return empty values
+//Helper function to run a promise, returning null immediately, or returning with data after promise resolves
 async function runPromiseWithImmediateOrAwaitedReturn(
   promiseFunc: () => Promise<any>,
   onSuccess: (successData: any) => any,
@@ -49,6 +48,7 @@ async function runPromiseWithImmediateOrAwaitedReturn(
   }
 }
 
+//The component
 export const PromisesPattern = forwardRef<PromisesPatternActions, Props>(
   function Counter(props, ref) {
     const { children } = props;
