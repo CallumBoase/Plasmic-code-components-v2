@@ -4,7 +4,7 @@ import { initPlasmicLoader } from "@plasmicapp/loader-nextjs";
 import { SupabaseUser } from "./components/SupabaseUserProvider";
 import { SupabaseProvider } from "./components/SupabaseProvider";
 import { SupabaseAddRowProvider } from "./components/SupabaseAddRowProvider";
-import { SupabaseStorageProvider, RegisterSupabaseStorageProvider } from "./components/SupabaseStorageProvider";
+import { SupabaseStorageProvider } from "./components/SupabaseStorageProvider_old";
 import { SupabaseStorageGetSignedUrl } from "./components/SupabaseStorageGetSignedUrl";
 import { PromiseDemo } from "./components/PromisesDemo";
 import { MyInput, MyInputRegistration } from "./components/MyInput";
@@ -392,7 +392,102 @@ PLASMIC.registerComponent(SupabaseProvider, {
   },
 });
 
-PLASMIC.registerComponent(SupabaseStorageProvider, RegisterSupabaseStorageProvider);
+PLASMIC.registerComponent(SupabaseStorageProvider, {
+  name: "SupabaseStorageProvider",
+  //typescript ignore next line due to Plasmic issue with refActions -> argType of "array"
+  // @ts-ignore
+  providesData: true,
+  props: {
+    children: {
+      type: "slot"
+    },
+    instanceName: {
+      type: "string"
+    },
+    bucketName: {
+      type: "string"
+    }
+  },
+  refActions: {
+    getSignedUrl: {
+      description: "Gets a signed URL for a file in a private bucket. For public buckets use the public URL.",
+      argTypes: [
+        { name: "path", type: "string", displayName: "Path and filename to get signed URL for"},
+        { name: "expiresIn", type: "number", displayName: "Time in seconds until the URL expires (optional). Default = 60."}
+      ]
+    },
+    uploadFile : {
+      description: "Uploads a file to an existing bucket.",
+      argTypes: [
+        { name: "path", type: "string", displayName: "Upload path (including file name)"},
+        { name: "base64FileData", type: "string", displayName: "File data (base64 encoded string)"},
+        { name: "contentType", type: "string", displayName: "Content Type / MIME type"},
+        { name: "upsert", type: "boolean", displayName: "Allow overwrite (optional). Default = false."}
+        // cacheControl property has been intentionally not included
+      ]
+    },
+    uploadManyFiles : {
+      description: "Upload a list of files to an existing bucket (assumes array of objects with shape { name: 'filename.ext', type: 'MIME type', contents: 'base64string'}",
+      argTypes: [
+        { name: "fileDataList", type: "array", displayName: "Array of objects with shape { name: 'filename.ext', type: 'MIME type', contents: 'base64string'}" }, 
+        { name: "folder", type: "string", displayName: "The folder/prefix to store each file in." }, 
+        { name: "upsert", type: "boolean", displayName: "Allow overwrite (optional). Default = false." },
+        { name: "replaceFilename", type: "boolean", displayName: "Replace filename with UUID"}
+      ]
+    },
+    downloadFile : {
+      description: "Downloads a file from a private bucket. For public buckets, make a request to the URL returned from 'getPublicUrl' instead or derive the URL.",
+      argTypes: [
+        { name: "path", type: "string", displayName: "Path and filename to download"},
+        { name: "optimization", type: "boolean", displayName: "Automatic image optimization (WebP) (optional). Default = true."},
+        // other transform properties have been intentinoally not included as they are currently in beta/require pro or enterprise tier supabase
+      ]
+    },
+    replaceFile : {
+      description: "Replaces an existing file at the specified path with a new one.",
+      argTypes: [
+        { name: "path", type: "string", displayName: "Upload path (including file name)"},
+        { name: "base64FileData", type: "string", displayName: "File data (base64 encoded string)"},
+        { name: "contentType", type: "string", displayName: "Content Type / MIME type"},
+        { name: "upsert", type: "boolean", displayName: "Allow overwrite (optional). Default = false."}
+      ]
+    },
+    moveFile : {
+      description: "Moves an existing file to a new path in the same bucket.",
+      argTypes: [
+        { name: "fromPath", type: "string", displayName: "From path (including current file name)"},
+        { name: "toPath", type: "string", displayName: "To data (including new file name)"},
+      ]
+    },
+    copyFile : {
+      description: "Copies an existing file to a new path in the same bucket.",
+      argTypes: [
+        { name: "fromPath", type: "string", displayName: "From path (including current file name)"},
+        { name: "toPath", type: "string", displayName: "To data (including new file name)"},
+      ]
+    },
+    deleteFiles : {
+      description: "Deletes specified files within the same bucket",
+      argTypes: [
+        { name: "paths", type: "array", displayName: "Paths to delete (array of paths, including current file name)"},
+      ]
+    },
+    listFiles: {
+      description: "Lists all the files within a bucket.",
+      argTypes: [
+        { name: "path", type: "string", displayName: "Folder path (optional)"},
+        { name: "limit", type: "number", displayName: "Number of files to return (optional). Default = 100"},
+        { name: "offset", type: "number", displayName: "Offset/Starting position (optional). Default = 0" },
+        { name: "sortBy", type: "object", displayName: "Sort by column (optional). Object like { column: 'name', order: 'asc' }" },
+        { name: "search", type: "string", displayName: "Search string to filter files by (optional)" },
+      ]
+    },
+    emptyBucket : {
+      description: "Removes all objects inside a single bucket.",
+      argTypes: []
+    },
+  },
+});
 
 PLASMIC.registerComponent(SupabaseStorageGetSignedUrl, {
   name: "SupabaseStorageGetSignedUrl",
