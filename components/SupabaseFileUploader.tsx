@@ -57,25 +57,27 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
       <FilePond 
         required={required}
         files={files}
-        onupdatefiles={(fileItems) => onUpdateFiles(fileItems.map(fileItem => {
-          return {
-            id: fileItem.id,
-            serverId: fileItem.serverId,
-            origin: fileItem.origin,
-            status: fileItem.status,
-            fileExtension: fileItem.fileExtension,
-            fileSize: fileItem.fileSize,
-            filename: fileItem.filename,
-            filenameWithoutExtension: fileItem.filenameWithoutExtension,
-            file: fileItem.file,//THis line causes infinite render loop!
-          }
-        }))}
-        // onupdatefiles={(fileItems) => {
-        //   return onUpdateFiles(fileItems.map((fileItem) => fileItem.file));
-        //   // const files = fileItems.map((fileItem) => fileItem.file);
-        //   // setFiles(files);
-        //   //return onUpdateFiles(files);
-        // }}
+
+        onupdatefiles={(fileItems) => {
+          const fileItemMetaDataWithoutFile = fileItems.map((fileItem) => {
+            //Return metadata of the fileItem without the actual file
+            //This is to avoid passing around large File objects and to avoid infinite re-render
+            //Other ways of desctructuring the fileItem object seem to result in an empty object for some reason
+            //So we do it manually here
+            //Structure of the fileItem object: https://pqina.nl/filepond/docs/api/file-item/
+            return {
+              id: fileItem.id,
+              serverId: fileItem.serverId,
+              origin: fileItem.origin,
+              status: fileItem.status,
+              fileExtension: fileItem.fileExtension,
+              fileSize: fileItem.fileSize,
+              filename: fileItem.filename,
+              filenameWithoutExtension: fileItem.filenameWithoutExtension,
+            }
+          });
+          onUpdateFiles(fileItemMetaDataWithoutFile);
+        }}
         allowMultiple={allowMultiple}
         maxFiles={maxFiles}
         maxFileSize={maxFileSize}
