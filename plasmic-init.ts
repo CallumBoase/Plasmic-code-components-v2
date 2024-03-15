@@ -9,6 +9,7 @@ import { SupabaseStorageGetSignedUrl } from "./components/SupabaseStorageGetSign
 import { PromiseDemo } from "./components/PromisesDemo";
 import { MyInput, MyInputRegistration } from "./components/MyInput";
 import { PromisesPattern, PromisesPatternRegister } from "./components/PromisesPattern";
+import { SupabaseFileUploader, registerSupabaseFileUploader } from "./components/SupabaseFileUploader";
 
 export const PLASMIC = initPlasmicLoader({
   projects: [
@@ -428,3 +429,4 @@ PLASMIC.registerComponent(SupabaseStorageGetSignedUrl, {
 
 PLASMIC.registerComponent(MyInput, MyInputRegistration);
 PLASMIC.registerComponent(PromisesPattern, PromisesPatternRegister);
+PLASMIC.registerComponent(SupabaseFileUploader, registerSupabaseFileUploader);
