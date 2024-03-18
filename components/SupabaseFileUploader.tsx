@@ -17,6 +17,10 @@ import FilePondPluginImagePreview from "filepond-plugin-image-preview";
 import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import "filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css";
 
+//Supabase storage methods
+import { convertBlobToBase64 } from "./SupabaseStorage/Methods/convertFileToBase64";
+import { uploadFile } from '@/components/SupabaseStorage/Methods/uploadFile';
+
 //Register the Filepond plugins
 registerPlugin(
   FilePondPluginImageExifOrientation,
@@ -36,24 +40,8 @@ type Props = {
 
 export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required, allowMultiple, maxFiles, maxFileSize }: Props) => {
 
-  console.log('render')
-  // const [files, setFiles] = useState<ActualFileObject[]>([]);
-  // const [files, setFiles] = useState<any>([]);
-
-  // console.log(files.map((file) => file.name));
-
-  // useEffect(() => {
-  //   onUpdateFiles(files);
-  // }
-  // , [onUpdateFiles, files]);
-
   return (
     <div className={className}>
-      {/* <input
-        type="text"
-        value={value}
-        onChange={(e) => onValueChange(e.target.value)}
-      /> */}
       <FilePond 
         required={required}
         files={files}
@@ -61,8 +49,8 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
         onupdatefiles={(fileItems) => {
           const fileItemMetaDataWithoutFile = fileItems.map((fileItem) => {
             //Return metadata of the fileItem without the actual file
-            //This is to avoid passing around large File objects and to avoid infinite re-render
-            //Other ways of desctructuring the fileItem object seem to result in an empty object for some reason
+            //This is to avoid passing around large File objects and to avoid infinite re-render caused by the File object
+            //Other ways of picking the relevant properties of fileItem object seem to result in an empty object in Plasmic Studio for some reason
             //So we do it manually here
             //Structure of the fileItem object: https://pqina.nl/filepond/docs/api/file-item/
             return {
@@ -82,6 +70,35 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
         maxFiles={maxFiles}
         maxFileSize={maxFileSize}
         credits={false}
+        server={{
+          process: (_fieldName, file, _metadata, load, error, _progress, abort, _transfer, _options) => {
+            convertBlobToBase64(file).then(base64FileData => {
+              const path = `fromFilepond/${file.name}`;
+              const contentType = file.type;
+              const upsert = false;
+          
+              uploadFile("temp_public", path, base64FileData, contentType, upsert)
+                .then((response) => {
+                  load(response.data);
+                })
+                .catch((err) => {
+                  error("Error uploading file");
+                });
+            }).catch((err) => {
+              error("Error reading file before upload");
+            });
+          
+            return {
+              abort: () => {
+                abort();
+              },
+            };
+          },          
+          revert: null,
+          restore: null,
+          load: null,
+          fetch: null,
+        }}
       />
     </div>
   );
