@@ -1,11 +1,22 @@
-import createClient from '@/utils/supabase/component';
-import { decode } from "base64-arraybuffer";
+import createClient from "@/utils/supabase/component";
 
-type UploadFile = (bucketName: string, path: string, base64FileData: string, contentType: string, upsert: boolean) => Promise<{ data: any, error: any }>;
+type UploadFile = (
+  bucketName: string,
+  path: string,
+  fileData: ArrayBuffer | Blob | File,
+  contentType: string,
+  upsert: boolean
+) => Promise<{ data: any; error: any }>;
 
 // Upload a file
 // Uploads a file to an existing bucket.
-export const uploadFile : UploadFile = async (bucketName, path, base64FileData, contentType, upsert) => {
+export const uploadFile: UploadFile = async (
+  bucketName,
+  path,
+  fileData,
+  contentType,
+  upsert
+) => {
   const supabase = createClient(); // establish the Supabase client
 
   // build an object with only the options that have actually been set
@@ -17,8 +28,8 @@ export const uploadFile : UploadFile = async (bucketName, path, base64FileData, 
 
   const { data: dataResponse, error: errorResponse } = await supabase.storage
     .from(bucketName)
-    .upload(path, decode(base64FileData), options);
+    .upload(path, fileData, options);
   if (errorResponse) throw errorResponse;
 
   return { data: dataResponse, error: errorResponse };
-}
+};

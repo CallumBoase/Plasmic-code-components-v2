@@ -18,8 +18,10 @@ import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import "filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css";
 
 //Supabase storage methods
-import { convertBlobToBase64 } from "./SupabaseStorage/Methods/convertFileToBase64";
 import { uploadFile } from '@/components/SupabaseStorage/Methods/uploadFile';
+
+//Utils
+import getErrMsg from "@/utils/getErrMsg";
 
 //Register the Filepond plugins
 registerPlugin(
@@ -72,21 +74,19 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
         credits={false}
         server={{
           process: (_fieldName, file, _metadata, load, error, _progress, abort, _transfer, _options) => {
-            convertBlobToBase64(file).then(base64FileData => {
-              const path = `fromFilepond/${file.name}`;
-              const contentType = file.type;
-              const upsert = false;
-          
-              uploadFile("temp_public", path, base64FileData, contentType, upsert)
-                .then((response) => {
-                  load(response.data);
-                })
-                .catch((err) => {
-                  error("Error uploading file");
-                });
-            }).catch((err) => {
-              error("Error reading file before upload");
-            });
+            
+            const path = `fromFilepond/${file.name}`;
+            const contentType = file.type;
+            const upsert = false;
+        
+            uploadFile("temp_public", path, file, contentType, upsert)
+              .then((response) => {
+                load(response.data);
+              })
+              .catch((err) => {
+                error(getErrMsg(err));
+              });
+            
           
             return {
               abort: () => {
