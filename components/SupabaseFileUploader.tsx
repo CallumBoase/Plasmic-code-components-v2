@@ -19,6 +19,7 @@ import "filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css";
 
 //Supabase storage methods
 import { uploadFile } from '@/components/SupabaseStorage/Methods/uploadFile';
+import { deleteFiles } from '@/components/SupabaseStorage/Methods/deleteFiles';
 
 //Utils
 import getErrMsg from "@/utils/getErrMsg";
@@ -31,8 +32,9 @@ registerPlugin(
 );
 
 type Props = {
-  files: any;
-  onUpdateFiles: (files: any) => string;
+  bucketName: string;
+  fileMetadata: any;
+  onFileMetadataUpdate: (files: any) => string;
   className: string;
   required: boolean;
   allowMultiple: boolean;
@@ -40,7 +42,12 @@ type Props = {
   maxFileSize: string | null | undefined;
 };
 
-export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required, allowMultiple, maxFiles, maxFileSize }: Props) => {
+export const SupabaseFileUploader = ({ bucketName, fileMetadata, onFileMetadataUpdate, className, required, allowMultiple, maxFiles, maxFileSize }: Props) => {
+
+  const [files, setFiles] = useState<any>([]);
+  console.log('render')
+  console.log(files)
+  const [processing, setIsProcessing] = useState<boolean>(false);
 
   return (
     <div className={className}>
@@ -48,8 +55,20 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
         required={required}
         files={files}
 
+        // onprocessfilestart={(file) => {
+        //   console.log('onprocessfilestart', file);
+        //   setIsProcessing(true);
+        // }}
+
+        // onprocessfiles={() => {
+        //   console.log('onprocessfiles');
+        //   setIsProcessing(false);
+        // }}
+
         onupdatefiles={(fileItems) => {
-          const fileItemMetaDataWithoutFile = fileItems.map((fileItem) => {
+          console.log('setFiles')
+          setFiles(fileItems);
+          const fileMetadataItemsWithoutFile = fileItems.map((fileItem) => {
             //Return metadata of the fileItem without the actual file
             //This is to avoid passing around large File objects and to avoid infinite re-render caused by the File object
             //Other ways of picking the relevant properties of fileItem object seem to result in an empty object in Plasmic Studio for some reason
@@ -66,7 +85,7 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
               filenameWithoutExtension: fileItem.filenameWithoutExtension,
             }
           });
-          onUpdateFiles(fileItemMetaDataWithoutFile);
+          onFileMetadataUpdate(fileMetadataItemsWithoutFile);
         }}
         allowMultiple={allowMultiple}
         maxFiles={maxFiles}
@@ -79,9 +98,10 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
             const contentType = file.type;
             const upsert = false;
         
-            uploadFile("temp_public", path, file, contentType, upsert)
+            uploadFile(bucketName, path, file, contentType, upsert)
               .then((response) => {
-                load(response.data);
+                console.log(response)
+                load(response.data.path);
               })
               .catch((err) => {
                 error(getErrMsg(err));
@@ -93,8 +113,20 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
                 abort();
               },
             };
-          },          
-          revert: null,
+          },      
+
+          revert: (uniqueFileId, load, error) => {
+            const paths = [uniqueFileId];
+            deleteFiles(bucketName, paths)
+              .then((_response) => {
+                load();
+              })
+              .catch((err) => {
+                console.log('error deleting file ', err);
+                error(getErrMsg(err));
+              });
+          },
+
           restore: null,
           load: null,
           fetch: null,
@@ -107,7 +139,11 @@ export const SupabaseFileUploader = ({ files, onUpdateFiles, className, required
 export const registerSupabaseFileUploader = {
   name: "SupabaseFileUploader",
   props: {
-    files: "object",
+    bucketName: {
+      type: "string",
+      default: "public",
+    },
+    fileMetadata: "object",
     required: {
       type: "boolean",
       default: false,
@@ -124,22 +160,22 @@ export const registerSupabaseFileUploader = {
       type: "string",
       default: "10mb",
     },
-    onUpdateFiles: {
+    onFileMetadataUpdate: {
       type: "eventHandler",
       argTypes: [
         {
-          name: "files",
+          name: "fileMetadatdaItems",
           type: "object",
         },
       ],
-    }
+    },
   },
   states: {
     files: {
       type: "writable",
       variableType: "object",
-      valueProp: "files",
-      onChangeProp: "onUpdateFiles",
+      valueProp: "fileMetadata",
+      onChangeProp: "onFileMetadataUpdate",
     },
   },
 };
