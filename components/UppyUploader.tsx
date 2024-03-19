@@ -4,6 +4,7 @@ import { Dashboard } from "@uppy/react";
 import type { UploadResult } from "@uppy/core";
 import Tus from "@uppy/tus";
 import createClient from "@/utils/supabase/component";
+import { useDeepCompareCallback } from "use-deep-compare";
 
 import "@uppy/core/dist/style.min.css";
 import "@uppy/dashboard/dist/style.min.css";
@@ -25,6 +26,9 @@ type UppyUploaderProps = {
   autoProceed: boolean;
   width?: number;
   height?: number;
+  onProcessingChange: (processing: boolean) => void;
+  onValueChange: (value: UploadResult | null) => UploadResult | null;
+  value: UploadResult | null;
 };
 
 function deleteFileInSupabase(bucketName: string, path: string) {
@@ -104,10 +108,20 @@ export function UppyUploader({
   autoProceed,
   width,
   height,
+  onProcessingChange,
+  onValueChange,
+  value,
 }: UppyUploaderProps) {
+
+  console.log('UppyUploader', value);
+  console.log('UppyUploader', onValueChange);
+
   const [ready, setReady] = useState(false);
   const [uppy, setUppy] = useState<Uppy | null>();
-  const [value, setValue] = useState<UploadResult | null>(null);
+  const onValueChangeCallback = useDeepCompareCallback(onValueChange, [onValueChange]);
+
+  // const [value, setValue] = useState<UploadResult | null>(null);
+  // const [processing, setProcessing] = useState(false);
 
   //On initial render or when bucketName or folder changes
   //Initialize Uppy
@@ -133,9 +147,9 @@ export function UppyUploader({
     });
   }, []);
 
-  //When maxNumberOfFiles or minNumberOfFiles changes, update Uppy's restrictions
+  //When uppy.SetOptions props change, update the Uppy instance
   useEffect(() => {
-    console.log("useeffect for max/min num files");
+    console.log("useeffect for setOptions");
     if (uppy) {
       uppy.setOptions({
         restrictions: {
@@ -162,8 +176,12 @@ export function UppyUploader({
 
   //When bucketName or folder changes, update the file-added and file-removed event listeners
   useEffect(() => {
+    console.log("useeffect for bucketName or folder");
     if (uppy) {
       uppy.on("file-added", (file) => {
+
+        // onProcessingChange(true);
+
         const supabaseMetadata = {
           bucketName: bucketName,
           objectName: folder ? `${folder}/${file.name}` : file.name,
@@ -187,10 +205,17 @@ export function UppyUploader({
     }
   }, [bucketName, folder, uppy]);
 
-  uppy?.on("complete", (result) => {
-    console.log("Upload complete!");
-    console.log(result);
-  });
+  //When onValueChangeCallback changes, update the uppy instance
+  useEffect(() => {
+    console.log('use effect for complete')
+    uppy?.on("complete", (result) => {
+      console.log("Upload complete!");
+      console.log(result);
+      //Infinite re-render occurs even if we do {...result}
+      //So we do it this way
+      onValueChangeCallback(JSON.parse(JSON.stringify(result)));
+    });
+  }, [uppy, onValueChangeCallback]);
 
   if (!ready) {
     return <div>Loading...</div>;
@@ -215,6 +240,14 @@ export const UppyUploaderRegistration = {
   props: {
     bucketName: "string",
     folder: "string",
+    width: {
+      type: "number",
+      description: "The width of the Uppy uploader dashboard in px. Refresh the arena to see your changes take effect.",
+    },
+    height: {
+      type: "number",
+      description: "The height of the Uppy uploader dashboard in px. Refresh the arena to see your changes take effect.",
+    },
     maxNumberOfFiles: {
       type: "number",
       defaultValue: 10,
@@ -240,18 +273,6 @@ export const UppyUploaderRegistration = {
       description:
         "A comma separated list of file types that are allowed (which we will convert to an array and provide to Uppy see uppy docs -> restrictions https://uppy.io/docs/uppy/#restrictions). To allow all file types unset this value.",
     },
-    showProgressDetails: {
-      type: "boolean",
-      defaultValue: true,
-      desciption:
-        "Whether to show progress details in the Uppy uploader dashboard",
-    },
-    showRemoveButtonAfterComplete: {
-      type: "boolean",
-      defaultValue: true,
-      description:
-        "Whether to show the remove button after a file has been uploaded",
-    },
     allowMultipleUploadBatches: {
       type: "boolean",
       defaultValue: true,
@@ -264,14 +285,38 @@ export const UppyUploaderRegistration = {
       description:
         "Whether to automatically start uploading files once they are added",
     },
-    width: {
-      type: "number",
-      description: "The width of the Uppy uploader dashboard in px",
+    showProgressDetails: {
+      type: "boolean",
+      defaultValue: true,
+      desciption:
+        "Whether to show progress details in the Uppy uploader dashboard. Refresh the arena to see your changes take effect.",
     },
-    height: {
-      type: "number",
-      description: "The height of the Uppy uploader dashboard in px",
+    showRemoveButtonAfterComplete: {
+      type: "boolean",
+      defaultValue: true,
+      description:
+        "Whether to show the remove button after a file has been uploaded. Refresh the arena to see your changes take effect.",
+    },
+    value: {
+      type: "object",
+      description: "The value of the uploaded file(s)",
+    },
+    onValueChange: {
+      type: "eventHandler",
+      argTypes: [
+        {
+          name: "value",
+          type: "object",
+        },
+      ],
+    }
+  },
+  states: {
+    value: {
+      type: "writable",
+      variableType: "object",
+      valueProp: "value",
+      onChangeProp: 'onValueChange'
     },
   },
-  states: {},
 };
