@@ -1,34 +1,37 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Uppy from "@uppy/core";
 import { Dashboard } from "@uppy/react";
 import Tus from "@uppy/tus";
+import createClient from "@/utils/supabase/component";
 
 import "@uppy/core/dist/style.min.css";
 import "@uppy/dashboard/dist/style.min.css";
+import getErrMsg from "@/utils/getErrMsg";
 
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5cG14Y2J1aHdwdWt6bW94aGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQwNTExNjksImV4cCI6MjAwOTYyNzE2OX0.t_awsVzBc-Nyoe6ZfYTVZ-CCCQXmRVYuSmoUNJGim_Q";
-const SUPABASE_PROJECT_ID = "gypmxcbuhwpukzmoxhds";
-const STORAGE_BUCKET = "temp_public";
-const BEARER_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsImtpZCI6IjYyWEd4RUsxY09ZVFBGcmIiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzEwODI1ODEyLCJpYXQiOjE3MTA4MjIyMTIsImlzcyI6Imh0dHBzOi8vZ3lwbXhjYnVod3B1a3ptb3hoZHMuc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6IjdhNDFkNTYxLWI1OTYtNGI2MS04NjBjLTY5MDhhMGYxYTU3OSIsImVtYWlsIjoiY2FsbHVtLmJvYXNlQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnt9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzEwODIyMjEyfV0sInNlc3Npb25faWQiOiJiMjFiNzYyMS00M2FkLTQ4NDAtOGMwMC00NmZmOWJlYTFiMTMiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.URpNn_NP0D79YyEWlU_0jnDlcO54lCqPttvPYHThIiI"
+type UppyUploaderProps = {
+  bucketName: string;
+  folder?: string;
+  maxNumberOfFiles: number;
+  minNumberOfFiles: number;
+  showProgressDetalis: boolean;
+  showRemoveButtonAfterComplete: boolean;
+};
 
-const folder = "fromUppy";
-const supabaseStorageURL = `https://${SUPABASE_PROJECT_ID}.supabase.co/storage/v1/upload/resumable`;
+function initUppy(
+  supabaseProjectId: string,
+  bearerToken: string,
+  supabaseAnonKey: string,
+  bucketName: string,
+  folder?: string,
+) {
+  const supabaseStorageURL = `https://${supabaseProjectId}.supabase.co/storage/v1/upload/resumable`;
 
-var uppy = new Uppy()
-  // .use(Dashboard, {
-  //   inline: true,
-  //   limit: 10,
-  //   target: "#drag-drop-area",
-  //   showProgressDetails: true,
-  //   showRemoveButtonAfterComplete: true,
-  // })
-  .use(Tus, {
+  var uppy = new Uppy().use(Tus, {
     endpoint: supabaseStorageURL,
     headers: {
-      authorization: `Bearer ${BEARER_TOKEN}`,
-      apikey: SUPABASE_ANON_KEY,
+      // authorization: `Bearer ${BEARER_TOKEN}`,
+      authorization: `Bearer ${bearerToken}`,
+      apikey: supabaseAnonKey,
     },
     uploadDataDuringCreation: true,
     chunkSize: 6 * 1024 * 1024,
@@ -43,61 +46,133 @@ var uppy = new Uppy()
     // },
   });
 
-uppy.on("file-added", (file) => {
-  const supabaseMetadata = {
-    bucketName: STORAGE_BUCKET,
-    objectName: folder ? `${folder}/${file.name}` : file.name,
-    contentType: file.type,
-  };
+  uppy.on("file-added", (file) => {
+    const supabaseMetadata = {
+      bucketName: bucketName,
+      objectName: folder ? `${folder}/${file.name}` : file.name,
+      contentType: file.type,
+    };
 
-  file.meta = {
-    ...file.meta,
-    ...supabaseMetadata,
-  };
+    file.meta = {
+      ...file.meta,
+      ...supabaseMetadata,
+    };
 
-  console.log("file added", file);
-});
+    console.log("file added", file);
+  });
 
-uppy.on("complete", (result) => {
-  console.log(
-    "Upload complete! We’ve uploaded these files:",
-    result.successful
-  );
-  console.log(result);
-});
+  uppy.on("complete", (result) => {
+    console.log(
+      "Upload complete! We’ve uploaded these files:",
+      result.successful
+    );
+    console.log(result);
+  });
 
-//Not yet working
-uppy.on("file-removed", (file, reason) => {
-  if (reason === "removed-by-user") {
-    console.log("file removed by user", file);
-    //Send delete request using supabasejs
+  //Not yet working
+  uppy.on("file-removed", (file, reason) => {
+    if (reason === "removed-by-user") {
+      console.log("file removed by user", file);
+      const supabase = createClient();
+
+      const path = [file.meta.objectName as string];
+
+      supabase.storage
+        .from(bucketName)
+        .remove(path)
+        .then((response) => {
+          if (response.error) throw Error(getErrMsg(response.error));
+          //When no files failed to delete (path didn't exist) we get an empty array back not an error
+          //We will consider this a failed deletion
+          if (response.data.length === 0) throw Error("No file was deleted");
+          console.log("file removed in supabase", response);
+        })
+        .catch((err) => {
+          console.log("error removing file in supabase", err);
+          //We don't try to handle failed removals. The user won't care if the file is still in supabase storage
+        });
+    }
+  });
+
+  return uppy;
+}
+
+export function UppyUploader({ bucketName, folder, maxNumberOfFiles, minNumberOfFiles, showProgressDetalis, showRemoveButtonAfterComplete }: UppyUploaderProps) {
+
+  const [ready, setReady] = useState(false);
+  const [uppy, setUppy] = useState<any>();
+
+  //On initial render or when bucketName or folder changes
+  //Initialize Uppy
+  useEffect(() => {
+    const supabaseProjectId = process.env
+      .NEXT_PUBLIC_SUPABASE_URL!.split("//")[1]
+      .split(".")[0];
+
+    //Init supabase client
+    const supabase = createClient();
+
+    //Get session of logged in user (if present)
+    supabase.auth.getSession().then((response) => {
+      //Decide which token to use - anon or logged in user's
+      let token = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      if (response.data.session?.access_token) {
+        console.log("User logged in");
+        token = response.data.session.access_token;
+      }
+
+      //Initialize Uppy
+      setUppy(
+        initUppy(
+          supabaseProjectId,
+          token,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          bucketName,
+          folder,
+        )
+      );
+
+      //Indicate that Uppy is ready
+      setReady(true);
+    });
+  }, [bucketName, folder]);
+
+  if (!ready) {
+    return <div>Loading...</div>;
   }
-});
 
-export function UppyUploader() {
-  // // IMPORTANT: passing an initializer function to prevent Uppy from being reinstantiated on every render.
-  // const uppy = useUppy(() => {
-  //   return new Uppy().use(Tus, { endpoint: "https://tusd.tusdemo.net/files/"})
-  // })
-
-  uppy.setOptions({
-    restrictions: {
-      maxNumberOfFiles: 10,
-      minNumberOfFiles: 1,
-    },
-  })
+  if(uppy) {
+    uppy.setOptions({
+      restrictions: {
+        maxNumberOfFiles: maxNumberOfFiles,
+        minNumberOfFiles: minNumberOfFiles,
+      },
+    });
+  }
 
   return (
     <Dashboard
       uppy={uppy}
-      showProgressDetails={true}
-      showRemoveButtonAfterComplete={true}
+      proudlyDisplayPoweredByUppy={false}
+      showProgressDetails={showProgressDetalis}
+      showRemoveButtonAfterComplete={showRemoveButtonAfterComplete}
     />
   );
 }
 
 export const UppyUploaderRegistration = {
   name: "UppyUploader",
-  props: {},
+  props: {
+    bucketName: "string",
+    folder: "string",
+    maxNumberOfFiles: {
+      type: "number",
+      default: 10,
+    },
+    minNumberOfFiles: {
+      type: "number",
+      default: 1,
+    },
+  },
   states: {},
 };
