@@ -101,7 +101,7 @@ function initUppy(
 export function UppyUploader({ className, bucketName, folder, maxNumberOfFiles, minNumberOfFiles, showProgressDetails, showRemoveButtonAfterComplete }: UppyUploaderProps) {
 
   const [ready, setReady] = useState(false);
-  const [uppy, setUppy] = useState<any>();
+  const [uppy, setUppy] = useState<any>();//TODO: set a proper type
 
   //On initial render or when bucketName or folder changes
   //Initialize Uppy
