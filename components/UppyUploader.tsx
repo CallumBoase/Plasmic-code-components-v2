@@ -9,11 +9,12 @@ import "@uppy/dashboard/dist/style.min.css";
 import getErrMsg from "@/utils/getErrMsg";
 
 type UppyUploaderProps = {
+  className: string;
   bucketName: string;
   folder?: string;
-  maxNumberOfFiles: number;
-  minNumberOfFiles: number;
-  showProgressDetalis: boolean;
+  maxNumberOfFiles?: number;
+  minNumberOfFiles?: number;
+  showProgressDetails: boolean;
   showRemoveButtonAfterComplete: boolean;
 };
 
@@ -97,13 +98,15 @@ function initUppy(
   return uppy;
 }
 
-export function UppyUploader({ bucketName, folder, maxNumberOfFiles, minNumberOfFiles, showProgressDetalis, showRemoveButtonAfterComplete }: UppyUploaderProps) {
+export function UppyUploader({ className, bucketName, folder, maxNumberOfFiles, minNumberOfFiles, showProgressDetails, showRemoveButtonAfterComplete }: UppyUploaderProps) {
 
   const [ready, setReady] = useState(false);
   const [uppy, setUppy] = useState<any>();
 
   //On initial render or when bucketName or folder changes
   //Initialize Uppy
+  //Known limitation: when bucketName or folder changes, the component will reinitialize Uppy, losing any current uploads
+  //This means that bucketName and folder should never be changed after the component is mounted
   useEffect(() => {
     const supabaseProjectId = process.env
       .NEXT_PUBLIC_SUPABASE_URL!.split("//")[1]
@@ -144,19 +147,21 @@ export function UppyUploader({ bucketName, folder, maxNumberOfFiles, minNumberOf
   if(uppy) {
     uppy.setOptions({
       restrictions: {
-        maxNumberOfFiles: maxNumberOfFiles,
-        minNumberOfFiles: minNumberOfFiles,
+        maxNumberOfFiles: maxNumberOfFiles || 10,
+        minNumberOfFiles: minNumberOfFiles || 1,
       },
     });
   }
 
   return (
-    <Dashboard
-      uppy={uppy}
-      proudlyDisplayPoweredByUppy={false}
-      showProgressDetails={showProgressDetalis}
-      showRemoveButtonAfterComplete={showRemoveButtonAfterComplete}
-    />
+    <div className={className}>
+      <Dashboard
+        uppy={uppy}
+        proudlyDisplayPoweredByUppy={false}
+        showProgressDetails={showProgressDetails}
+        showRemoveButtonAfterComplete={showRemoveButtonAfterComplete}
+      />
+    </div>
   );
 }
 
@@ -172,6 +177,14 @@ export const UppyUploaderRegistration = {
     minNumberOfFiles: {
       type: "number",
       default: 1,
+    },
+    showProgressDetails: {
+      type: "boolean",
+      default: true,
+    },
+    showRemoveButtonAfterComplete: {
+      type: "boolean",
+      default: true,
     },
   },
   states: {},
