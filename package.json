@@ -13,6 +13,8 @@
     "@plasmicapp/loader-nextjs": "^1.0.363",
     "@supabase/ssr": "^0.0.10",
     "@supabase/supabase-js": "^2.39.0",
+    "@uppy/dashboard": "^3.7.5",
+    "@uppy/react": "^3.2.2",
     "base64-arraybuffer": "^1.0.2",
     "cookie": "^0.6.0",
     "filepond": "^4.30.6",
