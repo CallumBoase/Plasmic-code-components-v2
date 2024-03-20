@@ -1,5 +1,5 @@
 //React
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 //React custom hooks
 import { useDeepCompareCallback } from "use-deep-compare";
@@ -9,6 +9,7 @@ import { CodeComponentMeta } from "@plasmicapp/host";
 
 //Uppy
 import Uppy from "@uppy/core";
+import type { UppyFile, UploadResult } from "@uppy/core";
 import { Dashboard } from "@uppy/react";
 import Tus from "@uppy/tus";
 import "@uppy/core/dist/style.min.css";
@@ -96,15 +97,57 @@ export function SupabaseUppyUploader({
   const [ready, setReady] = useState(false);
   const [uppy, setUppy] = useState<Uppy | null>();
   const onValueChangeCallback = useDeepCompareCallback(onValueChange, [onValueChange]);
+  const onProcessingChangeCallback = useDeepCompareCallback(onProcessingChange, [onProcessingChange]);
 
-  // const [value, setValue] = useState<UploadResult | null>(null);
-  // const [processing, setProcessing] = useState(false);
+  //Callback for when a file is added to Uppy
+  const fileAddedHandler = useCallback((file: UppyFile) => {
+    console.log('file added start')
 
-  //On initial render or when bucketName or folder changes
-  //Initialize Uppy
-  //Known limitation: when bucketName or folder changes, the component will reinitialize Uppy, losing any current uploads
-  //This means that bucketName and folder should never be changed after the component is mounted
+    onProcessingChangeCallback(true);
+
+    //Construct the metadata that will be sent to supabase
+    const supabaseMetadata = {
+      bucketName: bucketName,
+      objectName: folder ? `${folder}/${file.name}` : file.name,
+      contentType: file.type,
+    };
+
+    //Add the metadata to the Uppy file object
+    file.meta = {
+      ...file.meta,
+      ...supabaseMetadata,
+    };
+
+  }, [bucketName, folder, onProcessingChangeCallback]);
+
+  //Callback for when a file is removed from Uppy
+  const fileRemovedHandler = useCallback(async (file: UppyFile, reason: string) => {
+    console.log('file removed handler');
+    if (reason === "removed-by-user") {
+      console.log("file removed handler => file removed by user");
+      onProcessingChangeCallback(true);
+      try {
+        const { data } = await deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
+        console.log("after supabase file removed");
+        onProcessingChangeCallback(false);
+      } catch(err) {
+        console.log('error from supabase in file removal')
+      }
+    }
+  }, [bucketName, onProcessingChangeCallback]);
+
+  //Callback for when Uppy has completed uploading files
+  const completeHandler = useCallback((result: UploadResult) => {
+    console.log("Upload complete!");
+    console.log(result);
+    const transformedResult = transformUploadResult(result);
+    onValueChangeCallback(transformedResult);
+    onProcessingChangeCallback(false);
+  }, [onValueChangeCallback, onProcessingChangeCallback]);
+
+  //On initial render, initialize Uppy
   useEffect(() => {
+
     const supabaseProjectId = getSupabaseProjectIdFromUrl(
       process.env.NEXT_PUBLIC_SUPABASE_URL!
     );
@@ -151,55 +194,30 @@ export function SupabaseUppyUploader({
     uppy,
   ]);
 
-  //When bucketName or folder changes, update the file-added and file-removed event listeners
+  //Add callbacks to Uppy
+  //When Uppy or one of the callbacks change, remove old ones then add new ones
   useEffect(() => {
-    console.log("useeffect for bucketName or folder");
+    console.log('useEffect for file-added');
     if (uppy) {
-      uppy.on("file-added", (file) => {
-
-        // onProcessingChange(true);
-
-        const supabaseMetadata = {
-          bucketName: bucketName,
-          objectName: folder ? `${folder}/${file.name}` : file.name,
-          contentType: file.type,
-        };
-
-        file.meta = {
-          ...file.meta,
-          ...supabaseMetadata,
-        };
-
-        console.log("file added", file);
-      });
-
-      uppy.on("file-removed", (file, reason) => {
-        if (reason === "removed-by-user") {
-          console.log("file removed by user", file);
-          deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
-        }
-      });
+      uppy.on("file-added", fileAddedHandler);
+      uppy.on("file-removed", fileRemovedHandler);
+      uppy.on("complete", completeHandler);
     }
-  }, [bucketName, folder, uppy]);
+    return () => {
+      if (uppy) {
+        uppy.off("file-added", fileAddedHandler);
+        uppy.off("file-removed", fileRemovedHandler);
+        uppy.off("complete", completeHandler);
+      }
+    }
+  }, [uppy, fileAddedHandler, fileRemovedHandler, completeHandler])
 
-  //When onValueChangeCallback changes, update the uppy instance
-  useEffect(() => {
-    console.log('use effect for complete')
-    uppy?.on("complete", (result) => {
-      console.log("Upload complete!");
-      console.log(result);
-      const transformedResult = transformUploadResult(result);
-      onValueChangeCallback(transformedResult);
-      //Infinite re-render occurs even if we do {...result}
-      //So we do it this way
-      // onValueChangeCallback(JSON.parse(JSON.stringify(result)));
-    });
-  }, [uppy, onValueChangeCallback]);
-
+  //Render loading state when necessary
   if (!ready) {
     return <div>Loading...</div>;
   }
 
+  //Render the uploader
   return (
     <div className={className}>
       <Dashboard
@@ -276,6 +294,15 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       description:
         "Whether to show the remove button after a file has been uploaded. Refresh the arena to see your changes take effect.",
     },
+    onProcessingChange: {
+      type: "eventHandler",
+      argTypes: [
+        {
+          name: "processing",
+          type: "boolean",
+        },
+      ],
+    },
     onValueChange: {
       type: "eventHandler",
       argTypes: [
@@ -292,6 +319,12 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       variableType: "object",
       onChangeProp: 'onValueChange'
     },
+    processing: {
+      type: "readonly",
+      variableType: "boolean",
+      onChangeProp: 'onProcessingChange',
+      initVal: true
+    }
   },
-  importPath: "./SupabaseUppyUploader",
+  importPath: "./index",
 };
