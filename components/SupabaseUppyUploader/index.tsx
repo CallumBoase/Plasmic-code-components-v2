@@ -1,17 +1,29 @@
+//React
 import React, { useEffect, useState } from "react";
-import Uppy from "@uppy/core";
-import { Dashboard } from "@uppy/react";
-import type { UploadResult } from "@uppy/core";
-import Tus from "@uppy/tus";
-import createClient from "@/utils/supabase/component";
+
+//React custom hooks
 import { useDeepCompareCallback } from "use-deep-compare";
 
+//Plasmic
+import { CodeComponentMeta } from "@plasmicapp/host";
+
+//Uppy
+import Uppy from "@uppy/core";
+import { Dashboard } from "@uppy/react";
+import Tus from "@uppy/tus";
 import "@uppy/core/dist/style.min.css";
 import "@uppy/dashboard/dist/style.min.css";
-import getErrMsg from "@/utils/getErrMsg";
-import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
 
-type UppyUploaderProps = {
+//General utils
+import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
+import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
+
+//Component-specific utils
+import transformUploadResult, {type TransformedUploadResult } from "./transformUploadResult";
+import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
+
+//Declare the props type
+type SupabaseUppyUploaderProps = {
   className: string;
   bucketName: string;
   folder?: string;
@@ -27,34 +39,17 @@ type UppyUploaderProps = {
   width?: number;
   height?: number;
   onProcessingChange: (processing: boolean) => void;
-  onValueChange: (value: UploadResult | null) => UploadResult | null;
-  value: UploadResult | null;
+  onValueChange: (value: TransformedUploadResult | null) => void;
+  value: TransformedUploadResult | null;
 };
 
-function deleteFileInSupabase(bucketName: string, path: string) {
-  const supabase = createClient();
-
-  supabase.storage
-    .from(bucketName)
-    .remove([path])
-    .then((response) => {
-      if (response.error) throw Error(getErrMsg(response.error));
-      //When no files failed to delete (path didn't exist) we get an empty array back not an error
-      //We will consider this a failed deletion
-      if (response.data.length === 0) throw Error("No file was deleted");
-      console.log("file removed in supabase", response);
-    })
-    .catch((err) => {
-      console.log("error removing file in supabase", err);
-      //We don't try to handle failed removals. The user won't care if the file is still in supabase storage
-    });
-}
-
-function initUppy(
+//Helper function to init uppy
+export function initUppy(
   supabaseProjectId: string,
   bearerToken: string,
   supabaseAnonKey: string
 ) {
+
   const supabaseStorageURL = `https://${supabaseProjectId}.supabase.co/storage/v1/upload/resumable`;
 
   var uppy = new Uppy().use(Tus, {
@@ -77,23 +72,9 @@ function initUppy(
   return uppy;
 }
 
-//Helper function to the get anon or logged in user bearer token for supabase
-async function getBearerTokenForSupabase() {
-  //Init supabase client
-  const supabase = createClient();
 
-  const { data, error } = await supabase.auth.getSession();
 
-  if (error || !data.session?.access_token) {
-    //Return the anon token
-    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  } else {
-    //Return the logged in user's auth token
-    return data.session.access_token;
-  }
-}
-
-export function UppyUploader({
+export function SupabaseUppyUploader({
   className,
   bucketName,
   folder,
@@ -110,11 +91,7 @@ export function UppyUploader({
   height,
   onProcessingChange,
   onValueChange,
-  value,
-}: UppyUploaderProps) {
-
-  console.log('UppyUploader', value);
-  console.log('UppyUploader', onValueChange);
+}: SupabaseUppyUploaderProps) {
 
   const [ready, setReady] = useState(false);
   const [uppy, setUppy] = useState<Uppy | null>();
@@ -199,7 +176,7 @@ export function UppyUploader({
       uppy.on("file-removed", (file, reason) => {
         if (reason === "removed-by-user") {
           console.log("file removed by user", file);
-          deleteFileInSupabase(bucketName, file.meta.objectName as string);
+          deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
         }
       });
     }
@@ -211,9 +188,11 @@ export function UppyUploader({
     uppy?.on("complete", (result) => {
       console.log("Upload complete!");
       console.log(result);
+      const transformedResult = transformUploadResult(result);
+      onValueChangeCallback(transformedResult);
       //Infinite re-render occurs even if we do {...result}
       //So we do it this way
-      onValueChangeCallback(JSON.parse(JSON.stringify(result)));
+      // onValueChangeCallback(JSON.parse(JSON.stringify(result)));
     });
   }, [uppy, onValueChangeCallback]);
 
@@ -235,8 +214,8 @@ export function UppyUploader({
   );
 }
 
-export const UppyUploaderRegistration = {
-  name: "UppyUploader",
+export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderProps> = {
+  name: "SupabaseUppyUploader",
   props: {
     bucketName: "string",
     folder: "string",
@@ -288,7 +267,7 @@ export const UppyUploaderRegistration = {
     showProgressDetails: {
       type: "boolean",
       defaultValue: true,
-      desciption:
+      description:
         "Whether to show progress details in the Uppy uploader dashboard. Refresh the arena to see your changes take effect.",
     },
     showRemoveButtonAfterComplete: {
@@ -296,10 +275,6 @@ export const UppyUploaderRegistration = {
       defaultValue: true,
       description:
         "Whether to show the remove button after a file has been uploaded. Refresh the arena to see your changes take effect.",
-    },
-    value: {
-      type: "object",
-      description: "The value of the uploaded file(s)",
     },
     onValueChange: {
       type: "eventHandler",
@@ -313,10 +288,10 @@ export const UppyUploaderRegistration = {
   },
   states: {
     value: {
-      type: "writable",
+      type: "readonly",
       variableType: "object",
-      valueProp: "value",
       onChangeProp: 'onValueChange'
     },
   },
+  importPath: "./SupabaseUppyUploader",
 };
