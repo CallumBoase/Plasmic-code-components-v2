@@ -21,22 +21,7 @@ import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
-
-//Helper function to extract the safe values from Uppy file object
-//Which is everything minus the data prop (which is a File object)
-//Reason: passing a File object to Plasmic studio causes infinite re-render
-function getSafeVals(Files: Array<UppyFile> | null | undefined) {
-  if (!Files) {
-    return null;
-  }
-  return Files.map((file) => {
-    //Return all but data prop of file
-    const { data, ...rest } = file;
-    return rest;
-  });
-}
-
-type GetValuesResult = ReturnType<typeof getSafeVals>;
+import getSafeValues, { GetSafeValuesResult } from "./getSafeValues";
 
 //Declare the props type
 type SupabaseUppyUploaderProps = {
@@ -55,7 +40,7 @@ type SupabaseUppyUploaderProps = {
   width?: number;
   height?: number;
   onStatusChange: (status: string) => void;
-  onValueChange: (value: GetValuesResult) => void;
+  onValueChange: (value: GetSafeValuesResult) => void;
 };
 
 //Helper function to init uppy
@@ -115,7 +100,7 @@ export function SupabaseUppyUploader({
   const fileAddedHandler = useCallback((file: UppyFile) => {
 
     onStatusChangeCallback("Uploads processing");
-    onValueChangeCallback(getSafeVals(uppy?.getFiles()));
+    onValueChangeCallback(getSafeValues(uppy?.getFiles()));
 
     //Construct the metadata that will be sent to supabase
     const supabaseMetadata = {
@@ -139,7 +124,7 @@ export function SupabaseUppyUploader({
 
     //We remove the file from Uppy instantly and delete in the background
     //Reason: we shouldn't force users to wait for file deletion and won't let them know of errors
-    onValueChangeCallback(getSafeVals(files));
+    onValueChangeCallback(getSafeValues(files));
 
     //If there are no more files left, updated the status accordingly
     //Otherwise, the status is unchanged since remove operations are not awaited
@@ -161,13 +146,13 @@ export function SupabaseUppyUploader({
 
   //Callback for when Uppy has completed uploading files (whether successful or not)
   const completeHandler = useCallback((_result: UploadResult) => {
-    onValueChangeCallback(getSafeVals(uppy?.getFiles()));
+    onValueChangeCallback(getSafeValues(uppy?.getFiles()));
     onStatusChangeCallback("All uploads complete");
   }, [onValueChangeCallback, onStatusChangeCallback, uppy]);
 
   //Callback to update value without changing processing value - used for various Uppy events that don't change processing state
   const runOnvalueChangeCallback = useCallback(() => {
-    onValueChangeCallback(getSafeVals(uppy?.getFiles()));
+    onValueChangeCallback(getSafeValues(uppy?.getFiles()));
   }, [onValueChangeCallback, uppy]);
 
 
@@ -288,6 +273,7 @@ export function SupabaseUppyUploader({
   );
 }
 
+//Define the registration metatdata for plasmic studio
 export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderProps> = {
   name: "SupabaseUppyUploader",
   props: {
