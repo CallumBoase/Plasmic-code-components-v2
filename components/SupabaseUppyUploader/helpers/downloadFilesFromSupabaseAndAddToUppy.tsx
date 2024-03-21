@@ -43,7 +43,7 @@ export default async function downloadFilesFromSupabaseAndAddToUppy(
 
     //Immediately set the file state to upload complete so Uppy doesn't try to upload it
     uppy.setFileState(fileId, {
-      progress: { uploadComplete: true, uploadStarted: true },
+      progress: { uploadComplete: true, uploadStarted: 1, percentage: 100 },
     });
 
     //Set the file meta data so it can be deleted if user clears it from uppy
