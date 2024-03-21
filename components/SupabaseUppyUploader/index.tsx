@@ -20,8 +20,23 @@ import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
 import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 
 //Component-specific utils
-import transformUploadResult, {type TransformedUploadResult } from "./transformUploadResult";
 import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
+
+//Helper function to extract the safe values from Uppy file object
+//Which is everything minus the data prop (which is a File object)
+//Reason: passing a File object to Plasmic studio causes infinite re-render
+function getSafeVals(Files: Array<UppyFile> | null | undefined) {
+  if (!Files) {
+    return null;
+  }
+  return Files.map((file) => {
+    //Return all but data prop of file
+    const { data, ...rest } = file;
+    return rest;
+  });
+}
+
+type GetValuesResult = ReturnType<typeof getSafeVals>;
 
 //Declare the props type
 type SupabaseUppyUploaderProps = {
@@ -39,9 +54,8 @@ type SupabaseUppyUploaderProps = {
   autoProceed: boolean;
   width?: number;
   height?: number;
-  onProcessingChange: (processing: boolean) => void;
-  onValueChange: (value: TransformedUploadResult | null) => void;
-  value: TransformedUploadResult | null;
+  onStatusChange: (status: string) => void;
+  onValueChange: (value: GetValuesResult) => void;
 };
 
 //Helper function to init uppy
@@ -73,8 +87,6 @@ export function initUppy(
   return uppy;
 }
 
-
-
 export function SupabaseUppyUploader({
   className,
   bucketName,
@@ -90,20 +102,20 @@ export function SupabaseUppyUploader({
   autoProceed,
   width,
   height,
-  onProcessingChange,
+  onStatusChange,
   onValueChange,
 }: SupabaseUppyUploaderProps) {
 
   const [ready, setReady] = useState(false);
   const [uppy, setUppy] = useState<Uppy | null>();
   const onValueChangeCallback = useDeepCompareCallback(onValueChange, [onValueChange]);
-  const onProcessingChangeCallback = useDeepCompareCallback(onProcessingChange, [onProcessingChange]);
+  const onStatusChangeCallback = useDeepCompareCallback(onStatusChange, [onStatusChange]);
 
   //Callback for when a file is added to Uppy
   const fileAddedHandler = useCallback((file: UppyFile) => {
-    console.log('file added start')
 
-    onProcessingChangeCallback(true);
+    onStatusChangeCallback("Uploads processing");
+    onValueChangeCallback(getSafeVals(uppy?.getFiles()));
 
     //Construct the metadata that will be sent to supabase
     const supabaseMetadata = {
@@ -118,33 +130,46 @@ export function SupabaseUppyUploader({
       ...supabaseMetadata,
     };
 
-  }, [bucketName, folder, onProcessingChangeCallback]);
+  }, [uppy, bucketName, folder, onStatusChangeCallback, onValueChangeCallback]);
 
   //Callback for when a file is removed from Uppy
   const fileRemovedHandler = useCallback(async (file: UppyFile, reason: string) => {
-    console.log('file removed handler');
+
+    const files = uppy?.getFiles();
+
+    //We remove the file from Uppy instantly and delete in the background
+    //Reason: we shouldn't force users to wait for file deletion and won't let them know of errors
+    onValueChangeCallback(getSafeVals(files));
+
+    //If there are no more files left, updated the status accordingly
+    //Otherwise, the status is unchanged since remove operations are not awaited
+    //Note that Uppy does not consider itself to be In Progress during file removal
+    if(!files || files.length === 0) {
+      onStatusChangeCallback("No files uploaded yet");
+    }
+
+    //Delete file from Supabase if appropriate (without waiting for result or telling the user about errors)
     if (reason === "removed-by-user") {
-      console.log("file removed handler => file removed by user");
-      onProcessingChangeCallback(true);
       try {
-        const { data } = await deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
-        console.log("after supabase file removed");
-        onProcessingChangeCallback(false);
+        await deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
       } catch(err) {
-        console.log('error from supabase in file removal')
-        console.log(err);
+        //We don't do anything useful with the error here because we aren't making the user wait for deletion or fix errors
+        console.log('error from supabase in file removal', err)
       }
     }
-  }, [bucketName, onProcessingChangeCallback]);
+  }, [bucketName, onValueChangeCallback, onStatusChangeCallback, uppy]);
 
-  //Callback for when Uppy has completed uploading files
-  const completeHandler = useCallback((result: UploadResult) => {
-    console.log("Upload complete!");
-    console.log(result);
-    const transformedResult = transformUploadResult(result);
-    onValueChangeCallback(transformedResult);
-    onProcessingChangeCallback(false);
-  }, [onValueChangeCallback, onProcessingChangeCallback]);
+  //Callback for when Uppy has completed uploading files (whether successful or not)
+  const completeHandler = useCallback((_result: UploadResult) => {
+    onValueChangeCallback(getSafeVals(uppy?.getFiles()));
+    onStatusChangeCallback("All uploads complete");
+  }, [onValueChangeCallback, onStatusChangeCallback, uppy]);
+
+  //Callback to update value without changing processing value - used for various Uppy events that don't change processing state
+  const runOnvalueChangeCallback = useCallback(() => {
+    onValueChangeCallback(getSafeVals(uppy?.getFiles()));
+  }, [onValueChangeCallback, uppy]);
+
 
   //On initial render, initialize Uppy
   useEffect(() => {
@@ -198,20 +223,50 @@ export function SupabaseUppyUploader({
   //Add callbacks to Uppy
   //When Uppy or one of the callbacks change, remove old ones then add new ones
   useEffect(() => {
-    console.log('useEffect for file-added');
+    
+    //Setup event listeners that allow the parent component to access up-to-date value and processing states
     if (uppy) {
+      //When a file is first added
       uppy.on("file-added", fileAddedHandler);
-      uppy.on("file-removed", fileRemovedHandler);
+      
+      //Various progress events
+      uppy.on("upload", runOnvalueChangeCallback);
+      uppy.on("upload-progress", runOnvalueChangeCallback);
+      uppy.on("progress", runOnvalueChangeCallback);
+      uppy.on("upload-success", runOnvalueChangeCallback);
+      uppy.on("error", runOnvalueChangeCallback);
+      uppy.on("upload-error", runOnvalueChangeCallback);
+      uppy.on("upload-retry", runOnvalueChangeCallback);
+      uppy.on("retry-all", runOnvalueChangeCallback);
+      uppy.on("restriction-failed", runOnvalueChangeCallback);
+      uppy.on("reset-progress", runOnvalueChangeCallback);
+
+      //All operations are complete - update value + processing to false
       uppy.on("complete", completeHandler);
+
+      //When a file is removed
+      uppy.on("file-removed", fileRemovedHandler);
     }
+
+    //Cleanup old event listeners before re-adding new ones
     return () => {
       if (uppy) {
         uppy.off("file-added", fileAddedHandler);
-        uppy.off("file-removed", fileRemovedHandler);
+        uppy.off("upload-progress", runOnvalueChangeCallback);
+        uppy.off("upload", runOnvalueChangeCallback);
+        uppy.off("progress", runOnvalueChangeCallback);
+        uppy.off("upload-success", runOnvalueChangeCallback);
+        uppy.off("error", runOnvalueChangeCallback);
+        uppy.off("upload-error", runOnvalueChangeCallback);
+        uppy.off("upload-retry", runOnvalueChangeCallback);
+        uppy.off("retry-all", runOnvalueChangeCallback);
+        uppy.off("restriction-failed", runOnvalueChangeCallback);
+        uppy.off("reset-progress", runOnvalueChangeCallback);
         uppy.off("complete", completeHandler);
+        uppy.off("file-removed", fileRemovedHandler);
       }
     }
-  }, [uppy, fileAddedHandler, fileRemovedHandler, completeHandler])
+  }, [uppy, fileAddedHandler, fileRemovedHandler, completeHandler, runOnvalueChangeCallback])
 
   //Render loading state when necessary
   if (!ready) {
@@ -320,11 +375,11 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       variableType: "object",
       onChangeProp: 'onValueChange'
     },
-    processing: {
+    status: {
       type: "readonly",
-      variableType: "boolean",
-      onChangeProp: 'onProcessingChange',
-      initVal: true
+      variableType: "text",
+      onChangeProp: 'onStatusChange',
+      initVal: "No files uploaded yet"
     }
   },
   importPath: "./index",
