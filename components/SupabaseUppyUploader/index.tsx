@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 
 //React custom hooks
-import { useDeepCompareCallback } from "use-deep-compare";
+import { useDeepCompareCallback, useDeepCompareMemo } from "use-deep-compare";
 
 //Plasmic
 import { CodeComponentMeta } from "@plasmicapp/host";
@@ -22,6 +22,7 @@ import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
 import getSafeValues, { GetSafeValuesResult } from "./getSafeValues";
+import downloadFilesFromSupabaseAndAddToUppy from "./downloadFilesFromSupabaseAndAddToUppy";
 
 type SupabaseUppyUploaderActions = {
   // addFile: (
@@ -44,6 +45,7 @@ type SupabaseUppyUploaderProps = {
   className: string;
   bucketName: string;
   folder?: string;
+  initialFileNames?: Array<string>;
   maxNumberOfFiles?: number;
   minNumberOfFiles?: number;
   maxFileSize?: number;
@@ -97,6 +99,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     className,
     bucketName,
     folder,
+    initialFileNames,
     maxNumberOfFiles,
     minNumberOfFiles,
     maxFileSize,
@@ -118,6 +121,8 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
 
     const [ready, setReady] = useState(false);
     const [uppy, setUppy] = useState<Uppy | null>();
+    //The initial file names from first render. Will never change after first render
+    const [initialFileNamesState] = useState(initialFileNames);
     const onValueChangeCallback = useDeepCompareCallback(onValueChange, [onValueChange]);
     const onStatusChangeCallback = useDeepCompareCallback(onStatusChange, [onStatusChange]);
 
@@ -181,27 +186,33 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     }, [onValueChangeCallback, uppy]);
 
 
-    //On initial render, initialize Uppy
+    //On initial render, or when bucketName or objectName changes, re-initialize Uppy
+    //Note that initialFileNames will not cause re-render because we set it as a state variable instead of directly using prop
     useEffect(() => {
 
       const supabaseProjectId = getSupabaseProjectIdFromUrl(
         process.env.NEXT_PUBLIC_SUPABASE_URL!
       );
 
-      getBearerTokenForSupabase().then((token) => {
+      getBearerTokenForSupabase().then(async (token) => {
         //Initialize Uppy
-        setUppy(
-          initUppy(
-            supabaseProjectId,
-            token,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-          )
-        );
+        const uppy = initUppy(
+          supabaseProjectId,
+          token,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+
+        //If initialFileNames are provided, download them from Supabase Storage add them to the Uppy instance
+        if (initialFileNamesState) {
+          await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
+        }
+
+        setUppy(uppy);
 
         //Indicate that Uppy is ready
         setReady(true);
       });
-    }, []);
+    }, [initialFileNamesState, bucketName, folder]);
 
     //When uppy.SetOptions props change, update the Uppy instance
     useEffect(() => {
@@ -335,6 +346,10 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
     folder: {
       type: "string",
       description: "The folder within the bucket to upload to (leave blank if you want to upload to the root of the bucket)"
+    },
+    initialFileNames: {
+      type: 'array',
+      description: 'Initial file names that are already uploaded, within the specified folder in Supabase Storage eg ["file1.jpg", "file2.jpg"]. This is used to pre-populate the Uppy uploader dashboard with files that are already uploaded.'
     },
     theme: {
       type: "choice",
