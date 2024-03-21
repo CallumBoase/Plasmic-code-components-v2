@@ -35,10 +35,14 @@ type SupabaseUppyUploaderProps = {
   allowedFileTypes: string | null;
   showProgressDetails: boolean;
   showRemoveButtonAfterComplete: boolean;
+  deleteFromSupabaseStorageOnRemove: boolean;
   allowMultipleUploadBatches: boolean;
   autoProceed: boolean;
   width?: number;
   height?: number;
+  theme: "light" | "dark" | "auto";
+  showDoneButton: boolean;
+  onDoneButtonClick: () => void;
   onStatusChange: (status: string) => void;
   onValueChange: (value: GetSafeValuesResult) => void;
 };
@@ -83,10 +87,14 @@ export function SupabaseUppyUploader({
   allowedFileTypes,
   showProgressDetails,
   showRemoveButtonAfterComplete,
+  deleteFromSupabaseStorageOnRemove,
   allowMultipleUploadBatches,
   autoProceed,
+  showDoneButton,
+  onDoneButtonClick,
   width,
   height,
+  theme,
   onStatusChange,
   onValueChange,
 }: SupabaseUppyUploaderProps) {
@@ -134,7 +142,7 @@ export function SupabaseUppyUploader({
     }
 
     //Delete file from Supabase if appropriate (without waiting for result or telling the user about errors)
-    if (reason === "removed-by-user") {
+    if (reason === "removed-by-user" && deleteFromSupabaseStorageOnRemove) {
       try {
         await deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
       } catch(err) {
@@ -142,7 +150,7 @@ export function SupabaseUppyUploader({
         console.log('error from supabase in file removal', err)
       }
     }
-  }, [bucketName, onValueChangeCallback, onStatusChangeCallback, uppy]);
+  }, [bucketName, onValueChangeCallback, onStatusChangeCallback, deleteFromSupabaseStorageOnRemove, uppy]);
 
   //Callback for when Uppy has completed uploading files (whether successful or not)
   const completeHandler = useCallback((_result: UploadResult) => {
@@ -268,6 +276,13 @@ export function SupabaseUppyUploader({
         height={height}
         showProgressDetails={showProgressDetails}
         showRemoveButtonAfterComplete={showRemoveButtonAfterComplete}
+        //If showDoneButton is false, no handler therefore done button hidden
+        //Otherwise show the done button & run the custom handler if present
+        doneButtonHandler={!showDoneButton ? undefined : () => {
+          //Run whatever custom handler the user has defined too, if present
+          onDoneButtonClick();
+        }}
+        theme={theme}
       />
     </div>
   );
@@ -277,8 +292,26 @@ export function SupabaseUppyUploader({
 export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderProps> = {
   name: "SupabaseUppyUploader",
   props: {
-    bucketName: "string",
-    folder: "string",
+    bucketName: {
+      type: "string",
+      description: "The name of the supabase storage bucket to upload to",
+    },
+    folder: {
+      type: "string",
+      description: "The folder within the bucket to upload to (leave blank if you want to upload to the root of the bucket)"
+    },
+    theme: {
+      type: "choice",
+      defaultValue: "light",
+      options: ["light", "dark", "auto"],
+      description: "The theme (light or dark) of the Uppy uploader dashboard. Refresh the arena to see your changes take effect."
+    },
+    showDoneButton: {
+      type: "boolean",
+      defaultValue: true,
+      description:
+        "Whether to show the done button in the Uppy uploader dashboard. You can define what happens when the done button is clicked by adding an interaction action 'onDoneButtonClick'. Refresh the arena to see your changes take effect.",
+    },
     width: {
       type: "number",
       description: "The width of the Uppy uploader dashboard in px. Refresh the arena to see your changes take effect.",
@@ -335,6 +368,18 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       defaultValue: true,
       description:
         "Whether to show the remove button after a file has been uploaded. Refresh the arena to see your changes take effect.",
+    },
+    deleteFromSupabaseStorageOnRemove: {
+      type: "boolean",
+      defaultValue: true,
+      description:
+        "Whether to delete the file from Supabase Storage when the user removes it from the uploader interface (clicks 'X'). Note that deletion is not awaited and errors are not handled.",
+    },
+    onDoneButtonClick: {
+      type: "eventHandler",
+      argTypes: [],
+      description:
+        "Action to take when the done button is clicked in the Uppy uploader dashboard",
     },
     onStatusChange: {
       type: "eventHandler",
