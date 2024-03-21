@@ -22,6 +22,7 @@ export default function formatValues(Files: Array<UppyFile> | null | undefined) 
     fileNamesOnly: safeFilesArray.map((file) => file.name),
     fileNamesWithFolder: safeFilesArray.map((file) => file.meta.objectName),
     fullPaths: safeFilesArray.map((file) => `${file.meta.bucketName}/${file.meta.objectName}`),
+    bucketNames: safeFilesArray.map((file) => file.meta.bucketName),
   };
 
   return final;

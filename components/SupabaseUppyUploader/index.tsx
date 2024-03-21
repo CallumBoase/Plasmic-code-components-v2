@@ -2,6 +2,7 @@
 //Uppy react https://uppy.io/docs/react/
 //Uppy core https://uppy.io/docs/uppy/
 //Uppy dashboard https://uppy.io/docs/dashboard/
+//Supabase Uppy Tus example this is based on https://github.com/supabase/supabase/blob/master/examples/storage/resumable-upload-uppy/README.md
 
 //React
 import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle, useRef } from "react";
@@ -77,6 +78,7 @@ export function initUppy(
     headers: {
       authorization: `Bearer ${bearerToken}`,
       apikey: supabaseAnonKey,
+      "x-upsert": "false",
     },
     uploadDataDuringCreation: true,
     chunkSize: 6 * 1024 * 1024,
@@ -171,8 +173,15 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         onStatusChangeCallback("empty");
       }
 
+      //Determine if it's appropriate to run the API call to delete the file from Supabase Storage
+      const shouldDelete = 
+        reason === "removed-by-user" &&
+        deleteFromSupabaseStorageOnRemove &&
+        //Only delete if the file has been uploaded successfully previously, otherwise it may be a failed upload due to file named same already existing on server
+        file.progress?.uploadComplete;
+
       //Delete file from Supabase if appropriate (without waiting for result or telling the user about errors)
-      if (reason === "removed-by-user" && deleteFromSupabaseStorageOnRemove) {
+      if (shouldDelete) {
         try {
           await deleteFileFromSupabaseStorage(bucketName, file.meta.objectName as string);
         } catch(err) {
