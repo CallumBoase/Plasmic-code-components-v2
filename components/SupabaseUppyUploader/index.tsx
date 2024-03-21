@@ -1,8 +1,8 @@
 //React
-import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle, useRef } from "react";
 
 //React custom hooks
-import { useDeepCompareCallback, useDeepCompareMemo } from "use-deep-compare";
+import { useDeepCompareCallback } from "use-deep-compare";
 
 //Plasmic
 import { CodeComponentMeta } from "@plasmicapp/host";
@@ -22,7 +22,7 @@ import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
 import getSafeValues, { GetSafeValuesResult } from "./getSafeValues";
-import downloadFilesFromSupabaseAndAddToUppy from "./downloadFilesFromSupabaseAndAddToUppy";
+import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./downloadFilesFromSupabaseAndAddToUppy";
 
 type SupabaseUppyUploaderActions = {
   // addFile: (
@@ -63,6 +63,7 @@ type SupabaseUppyUploaderProps = {
   onDoneButtonClick: () => void;
   onStatusChange: (status: string) => void;
   onValueChange: (value: GetSafeValuesResult) => void;
+  onInitialFileLoadResultChange: (value: DownloadFilesFromSupabaseAndAddToUppyResult) => void;
 };
 
 //Helper function to init uppy
@@ -117,14 +118,20 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     theme,
     onStatusChange,
     onValueChange,
+    onInitialFileLoadResultChange
   }: SupabaseUppyUploaderProps, ref) {
 
     const [ready, setReady] = useState(false);
     const [uppy, setUppy] = useState<Uppy | null>();
-    //The initial file names from first render. Will never change after first render
+    
+    //State from props, for values we want to never cause a re-render
     const [initialFileNamesState] = useState(initialFileNames);
-    const onValueChangeCallback = useDeepCompareCallback(onValueChange, [onValueChange]);
-    const onStatusChangeCallback = useDeepCompareCallback(onStatusChange, [onStatusChange]);
+
+    //Create a stable reference to initial callback functions passed in as props
+    //Since Plasmic studio seems to pass in changed function references on render, causing issues
+    const onValueChangeCallback = useRef(onValueChange).current;
+    const onStatusChangeCallback = useRef(onStatusChange).current;
+    const onInitialFileLoadResultChangeCb = useRef(onInitialFileLoadResultChange).current;
 
     //Callback for when a file is added to Uppy
     const fileAddedHandler = useCallback((file: UppyFile) => {
@@ -204,7 +211,8 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
 
         //If initialFileNames are provided, download them from Supabase Storage add them to the Uppy instance
         if (initialFileNamesState) {
-          await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
+          const result = await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
+          onInitialFileLoadResultChangeCb(result);
         }
 
         setUppy(uppy);
@@ -212,7 +220,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         //Indicate that Uppy is ready
         setReady(true);
       });
-    }, [initialFileNamesState, bucketName, folder]);
+    }, [initialFileNamesState, onInitialFileLoadResultChangeCb, bucketName, folder]);
 
     //When uppy.SetOptions props change, update the Uppy instance
     useEffect(() => {
@@ -449,6 +457,15 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
           type: "object",
         },
       ],
+    },
+    onInitialFileLoadResultChange: {
+      type: "eventHandler",
+      argTypes: [
+        {
+          name: "value",
+          type: "object",
+        },
+      ],
     }
   },
   states: {
@@ -462,6 +479,12 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       variableType: "text",
       onChangeProp: 'onStatusChange',
       initVal: "No files uploaded yet"
+    },
+    initialFileLoadResult: {
+      type: "readonly",
+      variableType: "object",
+      onChangeProp: 'onInitialFileLoadResultChange',
+      initVal: []
     }
   },
   refActions: {

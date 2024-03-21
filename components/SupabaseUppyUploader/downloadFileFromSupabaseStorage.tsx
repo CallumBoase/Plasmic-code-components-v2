@@ -4,14 +4,8 @@ export default async function downloadFileFromSupabaseStorage(
   bucketName: string,
   filePath: string
 ) {
-  console.log(bucketName);
-  console.log(filePath);
   const supabase = createClient();
-  const { data, error } = await supabase.storage
+  return await supabase.storage
     .from(bucketName)
     .download(filePath);
-  if (error) {
-    throw error;
-  }
-  return data;
 }
