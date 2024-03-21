@@ -21,7 +21,7 @@ import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
-import getSafeValues, { GetSafeValuesResult } from "./getSafeValues";
+import formatValues, { FormattedValues } from "./formatValues";
 
 //Declare the props type
 type SupabaseUppyUploaderProps = {
@@ -44,7 +44,7 @@ type SupabaseUppyUploaderProps = {
   showDoneButton: boolean;
   onDoneButtonClick: () => void;
   onStatusChange: (status: string) => void;
-  onValueChange: (value: GetSafeValuesResult) => void;
+  onValueChange: (value: FormattedValues) => void;
 };
 
 //Helper function to init uppy
@@ -108,7 +108,7 @@ export function SupabaseUppyUploader({
   const fileAddedHandler = useCallback((file: UppyFile) => {
 
     onStatusChangeCallback("Uploads processing");
-    onValueChangeCallback(getSafeValues(uppy?.getFiles()));
+    onValueChangeCallback(formatValues(uppy?.getFiles()));
 
     //Construct the metadata that will be sent to supabase
     const supabaseMetadata = {
@@ -132,7 +132,7 @@ export function SupabaseUppyUploader({
 
     //We remove the file from Uppy instantly and delete in the background
     //Reason: we shouldn't force users to wait for file deletion and won't let them know of errors
-    onValueChangeCallback(getSafeValues(files));
+    onValueChangeCallback(formatValues(files));
 
     //If there are no more files left, updated the status accordingly
     //Otherwise, the status is unchanged since remove operations are not awaited
@@ -154,13 +154,13 @@ export function SupabaseUppyUploader({
 
   //Callback for when Uppy has completed uploading files (whether successful or not)
   const completeHandler = useCallback((_result: UploadResult) => {
-    onValueChangeCallback(getSafeValues(uppy?.getFiles()));
+    onValueChangeCallback(formatValues(uppy?.getFiles()));
     onStatusChangeCallback("All uploads complete");
   }, [onValueChangeCallback, onStatusChangeCallback, uppy]);
 
   //Callback to update value without changing processing value - used for various Uppy events that don't change processing state
   const runOnvalueChangeCallback = useCallback(() => {
-    onValueChangeCallback(getSafeValues(uppy?.getFiles()));
+    onValueChangeCallback(formatValues(uppy?.getFiles()));
   }, [onValueChangeCallback, uppy]);
 
 

@@ -1,3 +1,8 @@
+//Relevant docs
+//Uppy react https://uppy.io/docs/react/
+//Uppy core https://uppy.io/docs/uppy/
+//Uppy dashboard https://uppy.io/docs/dashboard/
+
 //React
 import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle, useRef } from "react";
 
@@ -18,7 +23,7 @@ import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
-import getSafeValues, { GetSafeValuesResult } from "./getSafeValues";
+import formatValues, { FormattedValues } from "./formatValues";
 import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./downloadFilesFromSupabaseAndAddToUppy";
 
 //Decalre types for element actions
@@ -53,7 +58,7 @@ type SupabaseUppyUploaderProps = {
   showDoneButton: boolean;
   onDoneButtonClick: () => void;
   onStatusChange: (status: Status) => void;
-  onValueChange: (value: GetSafeValuesResult) => void;
+  onValueChange: (value: FormattedValues) => void;
   onInitialFileLoadResultChange: (value: DownloadFilesFromSupabaseAndAddToUppyResult) => void;
   loading: React.ReactNode;
 };
@@ -132,7 +137,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
 
       //Send changed values to parent component (Plasmic studio)
       onStatusChangeCallback("uploads processing");
-      onValueChangeCallback(getSafeValues(uppy?.getFiles()));
+      onValueChangeCallback(formatValues(uppy?.getFiles()));
 
       //Construct custom metadata for the Uppy File object
       const supabaseMetadata = {
@@ -157,7 +162,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
 
       //We remove the file from Uppy instantly and run the delete API call in the background
       //Reason: we shouldn't force users to wait for file deletion and we won't force them to care about deletion errors
-      onValueChangeCallback(getSafeValues(files));
+      onValueChangeCallback(formatValues(files));
 
       //If there are no more files left, set status back to "No file uploaded yet"
       //Otherwise, the status is unchanged
@@ -180,14 +185,14 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     //Callback for when Uppy has completed uploading files (whether successful or not)
     const completeHandler = useCallback((_result: UploadResult) => {
       //Send changed values to parent component (Plasmic studio)
-      onValueChangeCallback(getSafeValues(uppy?.getFiles()));
+      onValueChangeCallback(formatValues(uppy?.getFiles()));
       onStatusChangeCallback("uploads complete");
     }, [onValueChangeCallback, onStatusChangeCallback, uppy]);
 
     //Callback to run when various processing events occur in Uppy
     const runOnvalueChangeCallback = useCallback(() => {
       //Send changed values to parent component (Plasmic studio)
-      onValueChangeCallback(getSafeValues(uppy?.getFiles()));
+      onValueChangeCallback(formatValues(uppy?.getFiles()));
     }, [onValueChangeCallback, uppy]);
 
 
@@ -485,7 +490,8 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
     value: {
       type: "readonly",
       variableType: "object",
-      onChangeProp: 'onValueChange'
+      onChangeProp: 'onValueChange',
+      initVal: [],
     },
     status: {
       type: "readonly",
