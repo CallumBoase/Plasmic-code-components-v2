@@ -11,7 +11,7 @@ export default async function deleteFileFromSupabaseStorage (bucketName: string,
   }
 
   if(data?.length === 0) {
-    throw Error("No file was deleted");
+    throw Error("No file was deleted (0 length data returned)");
   }
 
   return { data, error };

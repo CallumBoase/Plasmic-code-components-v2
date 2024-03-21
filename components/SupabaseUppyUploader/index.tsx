@@ -132,6 +132,7 @@ export function SupabaseUppyUploader({
         onProcessingChangeCallback(false);
       } catch(err) {
         console.log('error from supabase in file removal')
+        console.log(err);
       }
     }
   }, [bucketName, onProcessingChangeCallback]);
