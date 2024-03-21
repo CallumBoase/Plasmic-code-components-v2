@@ -128,7 +128,16 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     const [initialFilesResult, setInitialFilesResult] = useState<DownloadFilesFromSupabaseAndAddToUppyResult>([]);
     const [reset, setReset] = useState<number>(Math.random());
     const [status, setStatus] = useState<Status>("empty");
-    const [value, setValue] = useState<FormattedValues>(null);
+    const [value, setValue] = useState<FormattedValues>({
+      "rawFilesData": [],
+      "numSucceeded": 0,
+      "numFailed": 0,
+      "numAnyStatus": 0,
+      "fileNamesOnly": [],
+      "fileNamesWithFolder": [],
+      "fullPaths": [],
+      "bucketNames": []
+    });
     
     //Create state for initialFileNames that will NEVER change, so we don't re-render if it changes
     const [initialFileNamesState] = useState(initialFileNames);
@@ -515,7 +524,16 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "readonly",
       variableType: "object",
       onChangeProp: 'onValueChange',
-      initVal: {},
+      initVal: {
+        "rawFilesData": [],
+        "numSucceeded": 0,
+        "numFailed": 0,
+        "numAnyStatus": 0,
+        "fileNamesOnly": [],
+        "fileNamesWithFolder": [],
+        "fullPaths": [],
+        "bucketNames": []
+      },
     },
     status: {
       type: "readonly",
