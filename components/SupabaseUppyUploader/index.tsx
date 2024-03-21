@@ -350,12 +350,12 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       description:
         "Whether to show the remove button after a file has been uploaded. Refresh the arena to see your changes take effect.",
     },
-    onProcessingChange: {
+    onStatusChange: {
       type: "eventHandler",
       argTypes: [
         {
-          name: "processing",
-          type: "boolean",
+          name: "status",
+          type: "string",
         },
       ],
     },
