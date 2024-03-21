@@ -23,15 +23,16 @@ import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
 import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
 
 //Component-specific utils
-import deleteFileFromSupabaseStorage from "./deleteFileFromSupabaseStorage";
-import formatValues, { FormattedValues } from "./formatValues";
-import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./downloadFilesFromSupabaseAndAddToUppy";
+import deleteFileFromSupabaseStorage from "./helpers/deleteFileFromSupabaseStorage";
+import formatValues, { FormattedValues } from "./helpers/formatValues";
+import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./helpers/downloadFilesFromSupabaseAndAddToUppy";
 
 //Decalre types for element actions
 type SupabaseUppyUploaderActions = {
   removeFile: (fileID: string) => void;
   cancelAll: () => void;
   close: () => void;
+  reset: () => void;
 }
 
 
@@ -124,22 +125,24 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     //State for Uppy instance and ready status
     const [ready, setReady] = useState(false);
     const [uppy, setUppy] = useState<Uppy | null>();
+    const [initialFilesResult, setInitialFilesResult] = useState<DownloadFilesFromSupabaseAndAddToUppyResult>([]);
+    const [reset, setReset] = useState<number>(Math.random());
+    const [status, setStatus] = useState<Status>("empty");
+    const [value, setValue] = useState<FormattedValues>(null);
     
     //Create state for initialFileNames, because if props changes we should NOT re-render
     const [initialFileNamesState] = useState(initialFileNames);
 
-    //Create a stable reference to initial callback functions passed in as props
-    //Since Plasmic studio seems to pass in changed function references on render, causing unecessary re-renders
-    const onValueChangeCallback = useRef(onValueChange).current;
-    const onStatusChangeCallback = useRef(onStatusChange).current;
-    const onInitialFileLoadResultChangeCb = useRef(onInitialFileLoadResultChange).current;
+    //Callbacks frojm the various prop functions that can be passed in to pass state to parent component
+    const onValueChangeCallback = useCallback(onValueChange, [onValueChange]);
+    const onStatusChangeCallback = useCallback(onStatusChange, [onStatusChange]);
+    const onInitialFileLoadResultChangeCb = useCallback(onInitialFileLoadResultChange, [onInitialFileLoadResultChange]);
 
     //Callback to run when a file is added to Uppy
     const fileAddedHandler = useCallback((file: UppyFile) => {
 
-      //Send changed values to parent component (Plasmic studio)
-      onStatusChangeCallback("uploads processing");
-      onValueChangeCallback(formatValues(uppy?.getFiles()));
+      setStatus("uploads processing");
+      setValue(formatValues(uppy?.getFiles()));
 
       //Construct custom metadata for the Uppy File object
       const supabaseMetadata = {
@@ -154,7 +157,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         ...supabaseMetadata,
       };
 
-    }, [uppy, bucketName, folder, onStatusChangeCallback, onValueChangeCallback]);
+    }, [uppy, bucketName, folder, setStatus, setValue]);
 
     //Callback for when a file is removed from Uppy
     const fileRemovedHandler = useCallback(async (file: UppyFile, reason: string) => {
@@ -164,13 +167,14 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
 
       //We remove the file from Uppy instantly and run the delete API call in the background
       //Reason: we shouldn't force users to wait for file deletion and we won't force them to care about deletion errors
-      onValueChangeCallback(formatValues(files));
+      setValue(formatValues(files));
 
       //If there are no more files left, set status back to "No file uploaded yet"
       //Otherwise, the status is unchanged
       //Note that Uppy does not consider itself to be In Progress during file removal, and we are OK with this
       if(!files || files.length === 0) {
-        onStatusChangeCallback("empty");
+        setStatus("empty");
+        // onStatusChangeCallback("empty");
       }
 
       //Determine if it's appropriate to run the API call to delete the file from Supabase Storage
@@ -189,23 +193,20 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           console.log('error from supabase in file removal', err)
         }
       }
-    }, [bucketName, onValueChangeCallback, onStatusChangeCallback, deleteFromSupabaseStorageOnRemove, uppy]);
+    }, [bucketName, setValue, setStatus, deleteFromSupabaseStorageOnRemove, uppy]);
 
     //Callback for when Uppy has completed uploading files (whether successful or not)
     const completeHandler = useCallback((_result: UploadResult) => {
-      //Send changed values to parent component (Plasmic studio)
-      onValueChangeCallback(formatValues(uppy?.getFiles()));
-      onStatusChangeCallback("uploads complete");
-    }, [onValueChangeCallback, onStatusChangeCallback, uppy]);
+      setValue(formatValues(uppy?.getFiles()));
+      setStatus("uploads complete");
+    }, [setValue, setStatus, uppy]);
 
     //Callback to run when various processing events occur in Uppy
     const runOnvalueChangeCallback = useCallback(() => {
-      //Send changed values to parent component (Plasmic studio)
-      onValueChangeCallback(formatValues(uppy?.getFiles()));
-    }, [onValueChangeCallback, uppy]);
+      setValue(formatValues(uppy?.getFiles()));
+    }, [setValue, uppy]);
 
-
-    //On initial render, or when bucketName or objectName changes, re-initialize Uppy
+    //On initial render, or when bucketName, objectName or reset changes, re-initialize Uppy
     //Note that initialFileNames and onInitialFileLoadResultChangeCb will not cause re-render 
     //because we set those as stable state / refs based on initial props passed in
     useEffect(() => {
@@ -225,15 +226,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         //If initialFileNames are provided, download them from Supabase Storage add them to the Uppy instance
         if (initialFileNamesState) {
           const result = await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
-          
-          //Send the result of initial file download to the parent component (Plasmic Studio)
-          onInitialFileLoadResultChangeCb(result);
-
-          //tell the parent component (Plasmic Studio) that the initial files have been loaded (no longer status = "empty")
-          if(result.map(r => r.downloadSucceeded).length > 0) {
-            onStatusChangeCallback("initial files loaded");
-          }
-
+          setInitialFilesResult(result);
         }
 
         setUppy(uppy);
@@ -241,11 +234,25 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         //Indicate that Uppy is ready
         setReady(true);
       });
-    }, [initialFileNamesState, onInitialFileLoadResultChangeCb, onStatusChangeCallback, bucketName, folder]);
+    }, [initialFileNamesState, bucketName, folder, reset]);
+
+    //When initialFilesResult changes, send the result to the parent component (Plasmic Studio)
+    useEffect(() => {
+      onInitialFileLoadResultChangeCb(initialFilesResult);
+    }, [initialFilesResult, onInitialFileLoadResultChangeCb]);
+
+    //When status changes, send the status to the parent component (Plasmic Studio)
+    useEffect(() => {
+      onStatusChangeCallback(status);
+    }, [status, onStatusChangeCallback]);
+
+    //When value changes, send the value to the parent component (Plasmic Studio)
+    useEffect(() => {
+      onValueChangeCallback(value);
+    }, [value, onValueChangeCallback]);
 
     //When various option props change, update the Uppy instance with the new options
     useEffect(() => {
-      console.log("useeffect for setOptions");
       if (uppy) {
         uppy.setOptions({
           restrictions: {
@@ -315,7 +322,13 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           uppy.off("file-removed", fileRemovedHandler);
         }
       }
-    }, [uppy, fileAddedHandler, fileRemovedHandler, completeHandler, runOnvalueChangeCallback])
+    }, [uppy, fileAddedHandler, fileRemovedHandler, completeHandler, runOnvalueChangeCallback]);
+
+    //When dashboard options change, reset the Uppy instance
+    //Reason: the props do not otherwise trigger re-render of the Uppy instance, which is bad UX in Plasmic studio
+    useEffect(() => {
+      setReset(Math.random());
+    }, [width, height, theme, showDoneButton, showProgressDetails, showRemoveButtonAfterComplete]);
 
     //Define element actions to run from Plasmic studio
     useImperativeHandle(
@@ -330,6 +343,9 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           },
           close: () => {
             uppy?.close({reason: 'user'});
+          },
+          reset: () => {
+            setReset(Math.random());
           }
         };
       }
@@ -369,11 +385,11 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
   props: {
     bucketName: {
       type: "string",
-      description: "The name of the supabase storage bucket to upload to",
+      description: "The name of the supabase storage bucket to upload to. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic",
     },
     folder: {
       type: "string",
-      description: "The folder within the bucket to upload to (leave blank if you want to upload to the root of the bucket)"
+      description: "The folder within the bucket to upload to (leave blank if you want to upload to the root of the bucket). Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic"
     },
     initialFileNames: {
       type: 'array',
@@ -383,21 +399,21 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "choice",
       defaultValue: "light",
       options: ["light", "dark", "auto"],
-      description: "The theme (light or dark) of the Uppy uploader dashboard. Refresh the arena to see your changes take effect."
+      description: "The theme (light or dark) of the Uppy uploader dashboard. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic"
     },
     showDoneButton: {
       type: "boolean",
       defaultValue: true,
       description:
-        "Whether to show the done button in the Uppy uploader dashboard. You can define what happens when the done button is clicked by adding an interaction action 'onDoneButtonClick'. Refresh the arena to see your changes take effect.",
+        "Whether to show the done button in the Uppy uploader dashboard. You can define what happens when the done button is clicked by adding an interaction action 'onDoneButtonClick'. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic",
     },
     width: {
       type: "number",
-      description: "The width of the Uppy uploader dashboard in px. Refresh the arena to see your changes take effect.",
+      description: "The width of the Uppy uploader dashboard in px. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic",
     },
     height: {
       type: "number",
-      description: "The height of the Uppy uploader dashboard in px. Refresh the arena to see your changes take effect.",
+      description: "The height of the Uppy uploader dashboard in px. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic",
     },
     maxNumberOfFiles: {
       type: "number",
@@ -440,13 +456,13 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "boolean",
       defaultValue: true,
       description:
-        "Whether to show progress details in the Uppy uploader dashboard. Refresh the arena to see your changes take effect.",
+        "Whether to show progress details in the Uppy uploader dashboard. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic",
     },
     showRemoveButtonAfterComplete: {
       type: "boolean",
       defaultValue: true,
       description:
-        "Whether to show the remove button after a file has been uploaded. Refresh the arena to see your changes take effect.",
+        "Whether to show the remove button after a file has been uploaded. Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic",
     },
     deleteFromSupabaseStorageOnRemove: {
       type: "boolean",
@@ -500,7 +516,7 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "readonly",
       variableType: "object",
       onChangeProp: 'onValueChange',
-      initVal: [],
+      initVal: {},
     },
     status: {
       type: "readonly",
@@ -531,6 +547,10 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
     },
     close: {
       description: "Unmount the Uppy instance.",
+      argTypes: [],
+    },
+    reset: {
+      description: "Reset the Uppy instance.",
       argTypes: [],
     }
   },
