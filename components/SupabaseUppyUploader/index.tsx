@@ -122,7 +122,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     loading
   }: SupabaseUppyUploaderProps, ref) {
 
-    //State for Uppy instance and ready status
+    //States
     const [ready, setReady] = useState(false);
     const [uppy, setUppy] = useState<Uppy | null>();
     const [initialFilesResult, setInitialFilesResult] = useState<DownloadFilesFromSupabaseAndAddToUppyResult>([]);
@@ -130,10 +130,10 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     const [status, setStatus] = useState<Status>("empty");
     const [value, setValue] = useState<FormattedValues>(null);
     
-    //Create state for initialFileNames, because if props changes we should NOT re-render
+    //Create state for initialFileNames that will NEVER change, so we don't re-render if it changes
     const [initialFileNamesState] = useState(initialFileNames);
 
-    //Callbacks frojm the various prop functions that can be passed in to pass state to parent component
+    //Callbacks from the various prop functions that can be passed in to pass state to parent component
     const onValueChangeCallback = useCallback(onValueChange, [onValueChange]);
     const onStatusChangeCallback = useCallback(onStatusChange, [onStatusChange]);
     const onInitialFileLoadResultChangeCb = useCallback(onInitialFileLoadResultChange, [onInitialFileLoadResultChange]);
@@ -207,8 +207,6 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     }, [setValue, uppy]);
 
     //On initial render, or when bucketName, objectName or reset changes, re-initialize Uppy
-    //Note that initialFileNames and onInitialFileLoadResultChangeCb will not cause re-render 
-    //because we set those as stable state / refs based on initial props passed in
     useEffect(() => {
 
       const supabaseProjectId = getSupabaseProjectIdFromUrl(
@@ -325,7 +323,8 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     }, [uppy, fileAddedHandler, fileRemovedHandler, completeHandler, runOnvalueChangeCallback]);
 
     //When dashboard options change, reset the Uppy instance
-    //Reason: the props do not otherwise trigger re-render of the Uppy instance, which is bad UX in Plasmic studio
+    //Reason: the props changing do not otherwise show up until unmount and re-initializing of the component
+    //which is bad UX in Plasmic studio, because live updates to those props are therefore not visible as user changes them
     useEffect(() => {
       setReset(Math.random());
     }, [width, height, theme, showDoneButton, showProgressDetails, showRemoveButtonAfterComplete]);
