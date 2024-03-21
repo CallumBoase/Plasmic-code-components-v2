@@ -28,6 +28,9 @@ type SupabaseUppyUploaderActions = {
   close: () => void;
 }
 
+
+type Status = "empty" | "uploads processing" | "uploads complete" | "initial files loaded";
+
 //Declare the props type
 type SupabaseUppyUploaderProps = {
   className: string;
@@ -49,7 +52,7 @@ type SupabaseUppyUploaderProps = {
   theme: "light" | "dark" | "auto";
   showDoneButton: boolean;
   onDoneButtonClick: () => void;
-  onStatusChange: (status: string) => void;
+  onStatusChange: (status: Status) => void;
   onValueChange: (value: GetSafeValuesResult) => void;
   onInitialFileLoadResultChange: (value: DownloadFilesFromSupabaseAndAddToUppyResult) => void;
   loading: React.ReactNode;
@@ -67,7 +70,6 @@ export function initUppy(
   var uppy = new Uppy().use(Tus, {
     endpoint: supabaseStorageURL,
     headers: {
-      // authorization: `Bearer ${BEARER_TOKEN}`,
       authorization: `Bearer ${bearerToken}`,
       apikey: supabaseAnonKey,
     },
@@ -129,7 +131,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     const fileAddedHandler = useCallback((file: UppyFile) => {
 
       //Send changed values to parent component (Plasmic studio)
-      onStatusChangeCallback("Uploads processing");
+      onStatusChangeCallback("uploads processing");
       onValueChangeCallback(getSafeValues(uppy?.getFiles()));
 
       //Construct custom metadata for the Uppy File object
@@ -161,7 +163,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
       //Otherwise, the status is unchanged
       //Note that Uppy does not consider itself to be In Progress during file removal, and we are OK with this
       if(!files || files.length === 0) {
-        onStatusChangeCallback("No files uploaded yet");
+        onStatusChangeCallback("empty");
       }
 
       //Delete file from Supabase if appropriate (without waiting for result or telling the user about errors)
@@ -179,7 +181,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     const completeHandler = useCallback((_result: UploadResult) => {
       //Send changed values to parent component (Plasmic studio)
       onValueChangeCallback(getSafeValues(uppy?.getFiles()));
-      onStatusChangeCallback("All uploads complete");
+      onStatusChangeCallback("uploads complete");
     }, [onValueChangeCallback, onStatusChangeCallback, uppy]);
 
     //Callback to run when various processing events occur in Uppy
@@ -209,7 +211,15 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         //If initialFileNames are provided, download them from Supabase Storage add them to the Uppy instance
         if (initialFileNamesState) {
           const result = await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
+          
+          //Send the result of initial file download to the parent component (Plasmic Studio)
           onInitialFileLoadResultChangeCb(result);
+
+          //tell the parent component (Plasmic Studio) that the initial files have been loaded (no longer status = "empty")
+          if(result.map(r => r.downloadSucceeded).length > 0) {
+            onStatusChangeCallback("initial files loaded");
+          }
+
         }
 
         setUppy(uppy);
@@ -217,7 +227,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         //Indicate that Uppy is ready
         setReady(true);
       });
-    }, [initialFileNamesState, onInitialFileLoadResultChangeCb, bucketName, folder]);
+    }, [initialFileNamesState, onInitialFileLoadResultChangeCb, onStatusChangeCallback, bucketName, folder]);
 
     //When various option props change, update the Uppy instance with the new options
     useEffect(() => {
@@ -481,7 +491,7 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "readonly",
       variableType: "text",
       onChangeProp: 'onStatusChange',
-      initVal: "No files uploaded yet"
+      initVal: "empty"
     },
     initialFileLoadResult: {
       type: "readonly",
