@@ -5,7 +5,7 @@
 //Supabase Uppy Tus example this is based on https://github.com/supabase/supabase/blob/master/examples/storage/resumable-upload-uppy/README.md
 
 //React
-import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle, useRef } from "react";
+import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 
 //Plasmic
 import { CodeComponentMeta } from "@plasmicapp/host";
@@ -21,11 +21,13 @@ import "@uppy/dashboard/dist/style.min.css";
 //General utils
 import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
 import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
+import { v4 as uuid } from "uuid";
 
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./helpers/deleteFileFromSupabaseStorage";
 import formatValues, { FormattedValues } from "./helpers/formatValues";
 import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./helpers/downloadFilesFromSupabaseAndAddToUppy";
+import addUidInFrontOfFilenameBeforeUpload from "./helpers/addUidInFrontOfFilenameBeforeUpload";
 
 //Decalre types for element actions
 type SupabaseUppyUploaderActions = {
@@ -150,13 +152,18 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     //Callback to run when a file is added to Uppy
     const fileAddedHandler = useCallback((file: UppyFile) => {
 
+      // file.name = `${new Date().toISOString()}_${file.name}`
+
       setStatus("uploads processing");
       setValue(formatValues(uppy?.getFiles()));
+
+      // const uidFolder = uuid();
+      // const folderFinal = folder ? `${folder}/${uidFolder}` : uidFolder;
 
       //Construct custom metadata for the Uppy File object
       const supabaseMetadata = {
         bucketName: bucketName,
-        objectName: folder ? `${folder}/${file.name}` : file.name,
+        objectName: folder ? `${folder}/${file.name}` : `${file.name}`,
         contentType: file.type,
       };
 
@@ -234,6 +241,10 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         if (initialFileNamesState) {
           const result = await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
           setInitialFilesResult(result);
+          if(result.length > 0 && result.some(file => file.downloadSucceeded)) {
+            setStatus("initial files loaded");
+            setValue(formatValues(uppy.getFiles()));
+          }
         }
 
         setUppy(uppy);
@@ -289,6 +300,9 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     useEffect(() => {
       
       if (uppy) {
+
+        addUidInFrontOfFilenameBeforeUpload(uppy);
+
         //When a file is first added
         uppy.on("file-added", fileAddedHandler);
         
