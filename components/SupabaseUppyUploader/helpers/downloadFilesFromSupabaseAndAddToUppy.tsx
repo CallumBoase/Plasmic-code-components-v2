@@ -87,4 +87,4 @@ export type DownloadFilesFromSupabaseAndAddToUppyResult = {
   objectName: string;
   bucketName: string;
   folder?: string;
-}[];
+}[] | null;

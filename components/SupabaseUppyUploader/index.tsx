@@ -21,13 +21,12 @@ import "@uppy/dashboard/dist/style.min.css";
 //General utils
 import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
 import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
+import { v4 as uuid } from "uuid";
 
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./helpers/deleteFileFromSupabaseStorage";
 import formatValues, { FormattedValues } from "./helpers/formatValues";
 import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./helpers/downloadFilesFromSupabaseAndAddToUppy";
-import addUidInFrontOfFilenameBeforeUpload from "./helpers/addUidInFrontOfFilenameBeforeUpload";
-import defaultFilenameBehaviourNoUidInFront from "./helpers/defaultFilenameBehaviourNoUidInFront";
 
 //Decalre types for element actions
 type SupabaseUppyUploaderActions = {
@@ -45,7 +44,7 @@ type SupabaseUppyUploaderProps = {
   className: string;
   bucketName: string;
   folder?: string;
-  addUidInFrontOfFileName: boolean;
+  avoidNameConflicts: "Each file in unique subfolder" | "Uid in front of filename" | "None";
   initialFilePaths?: Array<string>;
   maxNumberOfFiles?: number;
   minNumberOfFiles?: number;
@@ -103,7 +102,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     className,
     bucketName,
     folder,
-    addUidInFrontOfFileName,
+    avoidNameConflicts,
     initialFilePaths,
     maxNumberOfFiles,
     minNumberOfFiles,
@@ -129,19 +128,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     //States
     const [ready, setReady] = useState(false);
     const [uppy, setUppy] = useState<Uppy | null>();
-    const [initialFilesResult, setInitialFilesResult] = useState<DownloadFilesFromSupabaseAndAddToUppyResult>([]);
     const [reset, setReset] = useState<number>(Math.random());
-    const [status, setStatus] = useState<Status>("empty");
-    const [value, setValue] = useState<FormattedValues>({
-      "rawFilesData": [],
-      "numSucceeded": 0,
-      "numFailed": 0,
-      "numAnyStatus": 0,
-      "fileNamesOnly": [],
-      "fileNamesWithFolder": [],
-      "fullPaths": [],
-      "bucketNames": []
-    });
     
     //Create state for initialFilePaths that will NEVER change, so we don't re-render if it changes
     const [initialFilePathsState] = useState(initialFilePaths);
@@ -152,30 +139,10 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     const onInitialFileLoadResultChangeCb = useCallback(onInitialFileLoadResultChange, [onInitialFileLoadResultChange]);
 
     //Callback to run when a file is added to Uppy
-    const fileAddedHandler = useCallback((file: UppyFile) => {
-
-      // file.name = `${new Date().toISOString()}_${file.name}`
-
-      setStatus("uploads processing");
-      setValue(formatValues(uppy?.getFiles()));
-
-      // const uidFolder = uuid();
-      // const folderFinal = folder ? `${folder}/${uidFolder}` : uidFolder;
-
-      //Construct custom metadata for the Uppy File object
-      const supabaseMetadata = {
-        bucketName: bucketName,
-        objectName: folder ? `${folder}/${file.name}` : `${file.name}`,
-        contentType: file.type,
-      };
-
-      //Add the metadata to the Uppy file object
-      file.meta = {
-        ...file.meta,
-        ...supabaseMetadata,
-      };
-
-    }, [uppy, bucketName, folder, setStatus, setValue]);
+    const fileAddedHandler = useCallback((_file: UppyFile) => {
+      onStatusChangeCallback("uploads processing");
+      onValueChangeCallback(formatValues(uppy?.getFiles()));
+    }, [uppy, onStatusChangeCallback, onValueChangeCallback]);
 
     //Callback for when a file is removed from Uppy
     const fileRemovedHandler = useCallback(async (file: UppyFile, reason: string) => {
@@ -185,14 +152,13 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
 
       //We remove the file from Uppy instantly and run the delete API call in the background
       //Reason: we shouldn't force users to wait for file deletion and we won't force them to care about deletion errors
-      setValue(formatValues(files));
+      onValueChangeCallback(formatValues(files));
 
       //If there are no more files left, set status back to "No file uploaded yet"
       //Otherwise, the status is unchanged
       //Note that Uppy does not consider itself to be In Progress during file removal, and we are OK with this
       if(!files || files.length === 0) {
-        setStatus("empty");
-        // onStatusChangeCallback("empty");
+        onStatusChangeCallback("empty");
       }
 
       //Determine if it's appropriate to run the API call to delete the file from Supabase Storage
@@ -211,20 +177,20 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           console.log('error from supabase in file removal', err)
         }
       }
-    }, [bucketName, setValue, setStatus, deleteFromSupabaseStorageOnRemove, uppy]);
+    }, [bucketName, deleteFromSupabaseStorageOnRemove, uppy, onValueChangeCallback, onStatusChangeCallback]);
 
     //Callback for when Uppy has completed uploading files (whether successful or not)
     const completeHandler = useCallback((_result: UploadResult) => {
-      setValue(formatValues(uppy?.getFiles()));
-      setStatus("uploads complete");
-    }, [setValue, setStatus, uppy]);
+      onValueChangeCallback(formatValues(uppy?.getFiles()));
+      onStatusChangeCallback("uploads complete");
+    }, [uppy, onValueChangeCallback, onStatusChangeCallback]);
 
     //Callback to run when various processing events occur in Uppy
     const runOnvalueChangeCallback = useCallback(() => {
-      setValue(formatValues(uppy?.getFiles()));
-    }, [setValue, uppy]);
+      onValueChangeCallback(formatValues(uppy?.getFiles()));
+    }, [uppy, onValueChangeCallback]);
 
-    //On initial render, or when bucketName, objectName or reset changes, re-initialize Uppy
+    //SETUP UPPY ON INITIAL RENDER
     useEffect(() => {
 
       const supabaseProjectId = getSupabaseProjectIdFromUrl(
@@ -239,37 +205,158 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        //If initialFilePaths are provided, download them from Supabase Storage add them to the Uppy instance
-        if (initialFilePathsState) {
-          const result = await downloadFilesFromSupabaseAndAddToUppy(initialFilePathsState, uppy, bucketName, folder);
-          setInitialFilesResult(result);
-          if(result.length > 0 && result.some(file => file.downloadSucceeded)) {
-            setStatus("initial files loaded");
-            setValue(formatValues(uppy.getFiles()));
-          }
+        setUppy(uppy)
+
+      });
+
+    }, [])
+
+    //Once uppy is Initialized, download initial files from Supabse and add to the Uppy instance
+    //But only do this ONCE
+    useEffect(() => {
+
+      //Uppy not Initialized, so do nothing
+      if(!uppy) return;
+
+      //The component is already ready (we've run this before), so do nothing
+      if(ready === true) return;
+
+      //There's no initial files to download, so set ready and do nothing
+      if(!initialFilePathsState) {
+        setReady(true);
+        return;
+      }
+
+      //There is initial files to download from Supabase
+      //Do that and then set ready
+      downloadFilesFromSupabaseAndAddToUppy(initialFilePathsState, uppy, bucketName, folder)
+      .then((result) => {
+        console.log('result', result)
+        // setInitialFilesResult(result);
+        onInitialFileLoadResultChangeCb(result);
+        if(result.length > 0 && result.some(file => file.downloadSucceeded)) {
+          // setStatus("initial files loaded");
+          onStatusChangeCallback("initial files loaded");
+          // setValue(formatValues(uppy.getFiles()));
+          onValueChangeCallback(formatValues(uppy.getFiles()));
         }
-
-        setUppy(uppy);
-
-        //Indicate that Uppy is ready
         setReady(true);
       });
-    }, [initialFilePathsState, bucketName, folder, reset]);
 
-    //When initialFilesResult changes, send the result to the parent component (Plasmic Studio)
-    useEffect(() => {
-      onInitialFileLoadResultChangeCb(initialFilesResult);
-    }, [initialFilesResult, onInitialFileLoadResultChangeCb]);
+    }, [uppy, initialFilePathsState, bucketName, folder, reset, ready, onValueChangeCallback, onInitialFileLoadResultChangeCb, onStatusChangeCallback]);
 
-    //When status changes, send the status to the parent component (Plasmic Studio)
+    //Before a file is added to Uppy, setup Supabase metatadata (which is needed for upload to supabase via Tus plugin)
+    //Optionally help manage duplicate file conflicts by doing one of the following (as specified by user):
+    //-Add a unique ID in front of the filename OR
+    //-Add each file to a unique subfolder
     useEffect(() => {
-      onStatusChangeCallback(status);
-    }, [status, onStatusChangeCallback]);
+      uppy?.setOptions({
+        onBeforeFileAdded: (file) => {
 
-    //When value changes, send the value to the parent component (Plasmic Studio)
-    useEffect(() => {
-      onValueChangeCallback(value);
-    }, [value, onValueChangeCallback]);
+          //Get the original ID generated by Uppy for ths new file
+          const originalIdFromUppy = file.id;
+
+          //Check there's no IDENTICAL file already in the instace of the Uppy uploader
+          //This normally happens automatically in Uppy based on Uppy's generated file.id (which will be the same for identical files from the same source)
+          //However, we sometimes must modify file.id below for other reasons
+          //When we modify file.id, we store the original in file.meta.originalIdFromUppy
+          //Therefore, to prevent IDENTICAL files in same instance of Uppy, we do this check manually using file.meta.originalIdFromUppy
+          const identicalFileAlreadyInUppy = uppy.getFiles().some(file => file.meta.originalIdFromUppy === originalIdFromUppy);
+          if(identicalFileAlreadyInUppy){
+            uppy.info('You have already added this file, so we skipped it. If you need to re-upload the file, remove it first then try again.', 'error', 3000);
+            return false;
+          }
+
+          //Generate a uid
+          const uid = uuid();
+
+          //Setup the common file metadata for Supabase (that is the same between all options below)
+          const commonSupabaseMeta = {
+            bucketName: bucketName,
+            contentType: file.type,
+          }
+
+          if(avoidNameConflicts === "None" || !avoidNameConflicts) {
+            //When not adding any UID to the filename
+            //Prepare the file object for Uppy
+            const modifiedFile = {
+              //The normal file data
+              ...file,
+              //Add more file metadata
+              meta: {
+                //The original metadata
+                ...file.meta,
+                //Common supabaseMeta data
+                ...commonSupabaseMeta,
+                //Objectname for Supabase based on folder and filename
+                objectName: folder ? `${folder}/${file.name}` : `${file.name}`,
+                //The original ID for this file as generated by Uppy (even though we didn't modify it in this scenario)
+                originalIdFromUppy: originalIdFromUppy,
+              }
+            }
+            return modifiedFile;
+
+          } else if (avoidNameConflicts === "Uid in front of filename") {
+            //When adding a UID in front of the file name
+
+            //Generate the modified filename
+            const fileName = `${uid}_${file.name}`;
+
+            //Prepare the file object for Uppy
+            const modifiedFile = {
+              //The normal file data
+              ...file,
+              //Modify the Uppy-generated file.id to our UID
+              id: uid,
+              //Modify the file name to include our UID
+              name: fileName,
+              //Add file metadata
+              meta: {
+                //The original metadata
+                ...file.meta,
+                //Add the common supabase metadata
+                ...commonSupabaseMeta,
+                //Objectname for Supabase based on folder and our uid_filename
+                objectName: folder ? `${folder}/${fileName}` : `${fileName}`,
+                //Another place we must set our modified filename
+                name: `${fileName}`,
+                //Store the original ID generated by Uppy
+                originalIdFromUppy: originalIdFromUppy,
+              }
+            }
+            return modifiedFile;
+
+          } else if (avoidNameConflicts === "Each file in unique subfolder") {
+            //When adding each file to a unique subfolder
+
+            //Generate our final path within the bucket and optional folder specified by props
+            //Adding a subfolder with the UID
+            const folderFinal = folder ? `${folder}/${uid}` : uid;
+            const pathFinal = `${folderFinal}/${file.name}`;
+
+            //Prepare the file object for Uppy
+            const modifiedFile = {
+              //The normal file data
+              ...file,
+              //Modify the Uppy-generated file.id to our UID
+              id: uid,
+              //Add file metadata
+              meta: {
+                //The original metadata
+                ...file.meta,
+                //Add the common supabase metadata
+                ...commonSupabaseMeta,
+                //Objectname for Supabase based on our final path including uid folder
+                objectName: pathFinal,
+                //Store the original ID generated by Uppy
+                originalIdFromUppy: originalIdFromUppy,
+              },
+            }
+            return modifiedFile;
+          }
+        }
+      })
+    }, [uppy, bucketName, folder, avoidNameConflicts])
 
     //When various option props change, update the Uppy instance with the new options
     useEffect(() => {
@@ -296,17 +383,6 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
       autoProceed,
       uppy,
     ]);
-
-    //When the addUidInFronOfFileName prop changes, change uppy settings (uppy.setOption.onBeforeFileAdded)
-    useEffect(() => {
-      if(uppy) {
-        if(addUidInFrontOfFileName) {
-          addUidInFrontOfFilenameBeforeUpload(uppy);
-        } else {
-          defaultFilenameBehaviourNoUidInFront(uppy);
-        }
-      }
-    }, [uppy, addUidInFrontOfFileName])
 
     //Add callbacks to Uppy to keep the parent component up-to-date with values and customise behaviour of Uppy
     //These will be cleaned up when the component unmounts or when one of the dependencies changes
@@ -361,6 +437,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     //which is bad UX in Plasmic studio, because live updates to those props are therefore not visible as user changes them
     useEffect(() => {
       setReset(Math.random());
+      setReady(false);
     }, [width, height, theme, showDoneButton, showProgressDetails, showRemoveButtonAfterComplete]);
 
     //Define element actions to run from Plasmic studio
@@ -376,9 +453,11 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           },
           close: () => {
             uppy?.close({reason: 'user'});
+            setReady(false);
           },
           reset: () => {
             setReset(Math.random());
+            setReady(false);
           }
         };
       }
@@ -424,9 +503,10 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "string",
       description: "The folder within the bucket to upload to (leave blank if you want to upload to the root of the bucket). Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic"
     },
-    addUidInFrontOfFileName: {
-      type: "boolean",
-      defaultValue: false,
+    avoidNameConflicts: {
+      type: "choice",
+      defaultValue: "Each file in unique subfolder",
+      options: ["Each file in unique subfolder", "Uid in front of filename", "None"],
       description: "Whether to add a unique ID in front of the filename before uploading to Supabase Storage. This is useful to prevent conflicts if users upload files with the same name.",
     },
     initialFilePaths: {
@@ -559,10 +639,7 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
         "numSucceeded": 0,
         "numFailed": 0,
         "numAnyStatus": 0,
-        "fileNamesOnly": [],
-        "fileNamesWithFolder": [],
-        "fullPaths": [],
-        "bucketNames": []
+        "successfulFiles": []
       },
     },
     status: {

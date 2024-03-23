@@ -11,7 +11,8 @@ export default function formatValues(Files: Array<UppyFile> | null | undefined) 
     //Get all but data prop of file
     const { data, ...allPropsButData } = file;
 
-    return allPropsButData;
+    return JSON.parse(JSON.stringify(allPropsButData));
+    // return allPropsButData;
   });
 
   const final = {
@@ -19,10 +20,14 @@ export default function formatValues(Files: Array<UppyFile> | null | undefined) 
     numSucceeded: safeFilesArray.filter((file) => file.progress?.uploadComplete).length,
     numFailed: safeFilesArray.filter((file) => file.progress?.uploadComplete === false).length,
     numAnyStatus: safeFilesArray.length,
-    fileNamesOnly: safeFilesArray.map((file) => file.name),
-    fileNamesWithFolder: safeFilesArray.map((file) => file.meta.objectName),
-    fullPaths: safeFilesArray.map((file) => `${file.meta.bucketName}/${file.meta.objectName}`),
-    bucketNames: safeFilesArray.map((file) => file.meta.bucketName),
+    successfulFiles: safeFilesArray.filter((file) => file.progress?.uploadComplete).map((file) => {
+      return {
+        bucketName: file.meta.bucketName,
+        fileName: file.name,
+        path: file.meta.objectName,
+        fullPath: `${file.meta.bucketName}/${file.meta.objectName}`,
+      }
+    }),
   };
 
   return final;
