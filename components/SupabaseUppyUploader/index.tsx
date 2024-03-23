@@ -21,13 +21,13 @@ import "@uppy/dashboard/dist/style.min.css";
 //General utils
 import getSupabaseProjectIdFromUrl from "@/utils/getSupabaseProjectIdFromUrl";
 import getBearerTokenForSupabase from "@/utils/getBearerTokenForSupabase";
-import { v4 as uuid } from "uuid";
 
 //Component-specific utils
 import deleteFileFromSupabaseStorage from "./helpers/deleteFileFromSupabaseStorage";
 import formatValues, { FormattedValues } from "./helpers/formatValues";
 import downloadFilesFromSupabaseAndAddToUppy, {DownloadFilesFromSupabaseAndAddToUppyResult} from "./helpers/downloadFilesFromSupabaseAndAddToUppy";
 import addUidInFrontOfFilenameBeforeUpload from "./helpers/addUidInFrontOfFilenameBeforeUpload";
+import defaultFilenameBehaviourNoUidInFront from "./helpers/defaultFilenameBehaviourNoUidInFront";
 
 //Decalre types for element actions
 type SupabaseUppyUploaderActions = {
@@ -45,7 +45,8 @@ type SupabaseUppyUploaderProps = {
   className: string;
   bucketName: string;
   folder?: string;
-  initialFileNames?: Array<string>;
+  addUidInFrontOfFileName: boolean;
+  initialFilePaths?: Array<string>;
   maxNumberOfFiles?: number;
   minNumberOfFiles?: number;
   maxFileSize?: number;
@@ -102,7 +103,8 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
     className,
     bucketName,
     folder,
-    initialFileNames,
+    addUidInFrontOfFileName,
+    initialFilePaths,
     maxNumberOfFiles,
     minNumberOfFiles,
     maxFileSize,
@@ -141,8 +143,8 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
       "bucketNames": []
     });
     
-    //Create state for initialFileNames that will NEVER change, so we don't re-render if it changes
-    const [initialFileNamesState] = useState(initialFileNames);
+    //Create state for initialFilePaths that will NEVER change, so we don't re-render if it changes
+    const [initialFilePathsState] = useState(initialFilePaths);
 
     //Callbacks from the various prop functions that can be passed in to pass state to parent component
     const onValueChangeCallback = useCallback(onValueChange, [onValueChange]);
@@ -237,9 +239,9 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        //If initialFileNames are provided, download them from Supabase Storage add them to the Uppy instance
-        if (initialFileNamesState) {
-          const result = await downloadFilesFromSupabaseAndAddToUppy(initialFileNamesState, uppy, bucketName, folder);
+        //If initialFilePaths are provided, download them from Supabase Storage add them to the Uppy instance
+        if (initialFilePathsState) {
+          const result = await downloadFilesFromSupabaseAndAddToUppy(initialFilePathsState, uppy, bucketName, folder);
           setInitialFilesResult(result);
           if(result.length > 0 && result.some(file => file.downloadSucceeded)) {
             setStatus("initial files loaded");
@@ -252,7 +254,7 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
         //Indicate that Uppy is ready
         setReady(true);
       });
-    }, [initialFileNamesState, bucketName, folder, reset]);
+    }, [initialFilePathsState, bucketName, folder, reset]);
 
     //When initialFilesResult changes, send the result to the parent component (Plasmic Studio)
     useEffect(() => {
@@ -295,13 +297,22 @@ export const SupabaseUppyUploader = forwardRef<SupabaseUppyUploaderActions, Supa
       uppy,
     ]);
 
+    //When the addUidInFronOfFileName prop changes, change uppy settings (uppy.setOption.onBeforeFileAdded)
+    useEffect(() => {
+      if(uppy) {
+        if(addUidInFrontOfFileName) {
+          addUidInFrontOfFilenameBeforeUpload(uppy);
+        } else {
+          defaultFilenameBehaviourNoUidInFront(uppy);
+        }
+      }
+    }, [uppy, addUidInFrontOfFileName])
+
     //Add callbacks to Uppy to keep the parent component up-to-date with values and customise behaviour of Uppy
     //These will be cleaned up when the component unmounts or when one of the dependencies changes
     useEffect(() => {
       
       if (uppy) {
-
-        addUidInFrontOfFilenameBeforeUpload(uppy);
 
         //When a file is first added
         uppy.on("file-added", fileAddedHandler);
@@ -413,9 +424,14 @@ export const SupabaseUppyUploaderMeta : CodeComponentMeta<SupabaseUppyUploaderPr
       type: "string",
       description: "The folder within the bucket to upload to (leave blank if you want to upload to the root of the bucket). Warning: changing this propr will cause Uppy to re-initialize. Avoid making it dynamic"
     },
-    initialFileNames: {
+    addUidInFrontOfFileName: {
+      type: "boolean",
+      defaultValue: false,
+      description: "Whether to add a unique ID in front of the filename before uploading to Supabase Storage. This is useful to prevent conflicts if users upload files with the same name.",
+    },
+    initialFilePaths: {
       type: 'array',
-      description: 'Initial file names that are already uploaded, within the specified folder in Supabase Storage eg ["file1.jpg", "file2.jpg"]. This is used to pre-populate the Uppy uploader dashboard with files that are already uploaded.'
+      description: 'Initial file paths that are already uploaded to pre-populate the Uploader with. These must be within the root path specified in SupabaseStorageProvider (bucketname and folder). Eg if SupabaseStorageProvider props bucketName = "someBucket" and folder = "someFolder", you could provide value here of ["file1.jpg", "anotherFolder/file2.jpg"] to populate the uploader with initial files someBucket/someFolder/file1.jpg and someBucket/someFolder/anotherFolder/file2.jpg',
     },
     theme: {
       type: "choice",

@@ -1,7 +1,7 @@
 import Uppy from '@uppy/core';
 import { v4 as uuid } from 'uuid';
 
-export default function addUidInFrontOfFilename(uppy: Uppy) {
+export default function addUidInFrontOfFilenameBeforeUpload(uppy: Uppy) {
 
   uppy.setOptions({
     onBeforeFileAdded: (newFile) => {

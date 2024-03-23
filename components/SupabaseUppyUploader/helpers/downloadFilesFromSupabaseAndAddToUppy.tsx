@@ -1,16 +1,19 @@
 import downloadFileFromSupabaseStorage from "./downloadFileFromSupabaseStorage";
 import Uppy from "@uppy/core";
 import blobToBase64 from "@/utils/blobToBase64";
+import getFileNameFromPath from "./getFileNameFromPath";
 
 export default async function downloadFilesFromSupabaseAndAddToUppy(
-  initialFileNames: Array<string>,
+  initialFilePaths: Array<string>,
   uppy: Uppy,
   bucketName: string,
   folder?: string
 ) {
   //Create a list of promises, 1 per file
-  const promises = initialFileNames.map(async (fileName) => {
-    const path = folder ? `${folder}/${fileName}` : fileName;
+  const promises = initialFilePaths.map(async (initialFilePath) => {
+    
+    const path = folder ? `${folder}/${initialFilePath}` : initialFilePath;
+    const fileName = getFileNameFromPath(initialFilePath);
 
     //Download the file from Supabase storage
     const { data, error } = await downloadFileFromSupabaseStorage(
@@ -26,6 +29,8 @@ export default async function downloadFilesFromSupabaseAndAddToUppy(
         downloadErrored: true,
         uppyFileId: null,
         supabaseFileDataBase64String: null,
+        filePathWithinBucketAndFolder: initialFilePath,
+        objectName: path,
         fileName: fileName,
         bucketName: bucketName,
         folder: folder,
@@ -60,6 +65,8 @@ export default async function downloadFilesFromSupabaseAndAddToUppy(
       uppyFileId: fileId,
       supabaseFileDataBase64String: base64Data,
       fileName: fileName,
+      filePathWithinBucketAndFolder: initialFilePath,
+      objectName: path,
       bucketName: bucketName,
       folder: folder,
     };
@@ -76,6 +83,8 @@ export type DownloadFilesFromSupabaseAndAddToUppyResult = {
   uppyFileId: string | null;
   supabaseFileDataBase64String: string | null;
   fileName: string;
+  filePathWithinBucketAndFolder: string;
+  objectName: string;
   bucketName: string;
   folder?: string;
 }[];
